@@ -8,6 +8,8 @@ import { towerDef } from "./tower";
 import { atmosphereDef } from "./atmosphere";
 import { rampartsDef } from "./ramparts";
 import { dustStormDef } from "./duststorm";
+import { heatHazeDef } from "./heathaze";
+import { radiumStormDef } from "./radiumstorm";
 
 export const ARTIFACTS: ArtifactDef[] = [
   hillDef,
@@ -19,6 +21,8 @@ export const ARTIFACTS: ArtifactDef[] = [
   atmosphereDef,
   rampartsDef,
   dustStormDef,
+  heatHazeDef,
+  radiumStormDef,
 ];
 
 export interface CategoryDef {

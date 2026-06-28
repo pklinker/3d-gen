@@ -10,7 +10,9 @@ export type ArtifactType =
   | "mossdunes"
   | "spires"
   | "atmosphere"
-  | "ramparts";
+  | "ramparts"
+  | "heathaze"
+  | "radiumstorm";
 export type OutputKind = "mesh" | "effect";
 
 /** Which mesh contract a mesh artifact is held to. Several artifact types can share one
