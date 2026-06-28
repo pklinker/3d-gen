@@ -1,6 +1,6 @@
-import type { ArtifactType, OutputKind } from "./contract/constants";
+import type { ArtifactType, ContractKey, OutputKind } from "./contract/constants";
 
-export type { ArtifactType, OutputKind };
+export type { ArtifactType, ContractKey, OutputKind };
 
 /** Top-level grouping shown as category tabs in the editor. */
 export type ArtifactCategory = "terrain" | "buildings" | "effects";
@@ -45,6 +45,8 @@ export interface ArtifactDef {
   /** Category tab this artifact lives under. */
   category: ArtifactCategory;
   output: OutputKind;
+  /** Which mesh contract this is conformed/validated against (mesh types only). */
+  contract?: ContractKey;
   params: ParamSpec[];
   /** seed + params -> geometry or effect. Deterministic. */
   generate: (seed: number, params: ParamValues) => GeneratorResult;

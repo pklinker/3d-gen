@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { SimplifyModifier } from "three-stdlib";
-import { MESH_CONTRACTS } from "../contract/constants";
+import { MESH_CONTRACTS, type ContractKey } from "../contract/constants";
 import { applyVerticalGradient, facet, shade } from "./proceduralEngine";
 
 export interface ConformReport {
@@ -23,9 +23,9 @@ export interface ConformReport {
  */
 export function conformGeometry(
   input: THREE.BufferGeometry,
-  type: "hill" | "tower",
+  contract: ContractKey,
 ): { geometry: THREE.BufferGeometry; report: ConformReport } {
-  const C = MESH_CONTRACTS[type];
+  const C = MESH_CONTRACTS[contract];
   let geo = input.clone();
 
   const triBefore = triCount(geo);
@@ -72,9 +72,13 @@ export function conformGeometry(
     }
   }
 
-  // Re-apply faceting + vertex colors so material/AO read stays on-contract.
+  // Re-facet for clean per-face normals. Preserve the generator's own vertex colors
+  // (each artifact paints its own palette); only fall back to the contract color when the
+  // mesh carries none — e.g. AI-imported geometry.
   geo = facet(geo);
-  applyVerticalGradient(geo, shade(C.color, 0.7), C.color);
+  if (!geo.getAttribute("color")) {
+    applyVerticalGradient(geo, shade(C.color, 0.7), C.color);
+  }
 
   return {
     geometry: geo,
@@ -90,8 +94,8 @@ export function conformGeometry(
 }
 
 /** Build the contract-correct matte material (vertex colors as albedo). */
-export function makeContractMaterial(type: "hill" | "tower"): THREE.MeshStandardMaterial {
-  const C = MESH_CONTRACTS[type];
+export function makeContractMaterial(contract: ContractKey): THREE.MeshStandardMaterial {
+  const C = MESH_CONTRACTS[contract];
   return new THREE.MeshStandardMaterial({
     vertexColors: true,
     metalness: C.metalness,

@@ -106,6 +106,7 @@ export const towerDef: ArtifactDef = {
   label: "Ruined Tower",
   category: "buildings",
   output: "mesh",
+  contract: "tower",
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "tower",

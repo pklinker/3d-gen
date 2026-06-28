@@ -50,7 +50,7 @@ export default function App() {
       const res = def.generate(seed, params);
       return { effect: res as GeneratedEffect, geometry: null, material: null, validation: null, report: null };
     }
-    const meshType = type as "hill" | "tower";
+    const contract = def.contract ?? "hill";
     let rawGeo: THREE.BufferGeometry;
     if (aiGeometry) {
       rawGeo = aiGeometry;
@@ -58,9 +58,9 @@ export default function App() {
       const res = def.generate(seed, params);
       rawGeo = (res as { geometry: THREE.BufferGeometry }).geometry;
     }
-    const { geometry, report } = conformGeometry(rawGeo, meshType);
-    const material = makeContractMaterial(meshType);
-    const validation = validateMesh(geometry, meshType);
+    const { geometry, report } = conformGeometry(rawGeo, contract);
+    const material = makeContractMaterial(contract);
+    const validation = validateMesh(geometry, contract);
     return { effect: null as GeneratedEffect | null, geometry, material, validation, report };
   }, [def, type, seed, params, aiGeometry]);
 

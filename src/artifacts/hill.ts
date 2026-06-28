@@ -1,12 +1,7 @@
 import * as THREE from "three";
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import {
-  makeRng,
-  applyVerticalGradient,
-  facet,
-  shade,
-} from "../generation/proceduralEngine";
+import { makeRng, applyVerticalGradient, facet } from "../generation/proceduralEngine";
 
 const C = MESH_CONTRACTS.hill;
 
@@ -17,6 +12,8 @@ const params = [
   { key: "rings", label: "Rings", kind: "int", min: 2, max: 6, step: 1, default: 3 },
   { key: "flatTop", label: "Top flatness", kind: "number", min: 0, max: 1, step: 0.05, default: 0.6 },
   { key: "jitter", label: "Edge jitter", kind: "number", min: 0, max: 0.3, step: 0.01, default: 0.12 },
+  { key: "baseColor", label: "Base color", kind: "color", default: "#593e1d" },
+  { key: "topColor", label: "Top color", kind: "color", default: "#80592A" },
 ] as const;
 
 /**
@@ -97,8 +94,10 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geo.setIndex(indices);
   const faceted = facet(geo);
-  applyVerticalGradient(faceted, shade(C.color, 0.7), C.color);
-  return { kind: "mesh", geometry: faceted, color: C.color };
+  const baseColor = p.baseColor as string;
+  const topColor = p.topColor as string;
+  applyVerticalGradient(faceted, baseColor, topColor);
+  return { kind: "mesh", geometry: faceted, color: topColor };
 }
 
 export const hillDef: ArtifactDef = {
@@ -106,6 +105,7 @@ export const hillDef: ArtifactDef = {
   label: "Hill / Mesa",
   category: "terrain",
   output: "mesh",
+  contract: "hill",
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "hill",

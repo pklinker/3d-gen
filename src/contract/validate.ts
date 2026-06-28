@@ -3,6 +3,7 @@ import {
   MESH_CONTRACTS,
   BASE_EPSILON,
   CENTER_EPSILON,
+  type ContractKey,
 } from "./constants";
 import { triCount } from "../generation/conform";
 
@@ -20,9 +21,9 @@ export interface ValidationResult {
 /** Validate a conformed geometry against its mesh contract. */
 export function validateMesh(
   geo: THREE.BufferGeometry,
-  type: "hill" | "tower",
+  contract: ContractKey,
 ): ValidationResult {
-  const C = MESH_CONTRACTS[type];
+  const C = MESH_CONTRACTS[contract];
   geo.computeBoundingBox();
   const bb = geo.boundingBox!;
   const checks: Check[] = [];

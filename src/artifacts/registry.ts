@@ -1,9 +1,10 @@
 import type { ArtifactCategory, ArtifactDef, ArtifactType } from "../types";
 import { hillDef } from "./hill";
+import { mountainDef } from "./mountain";
 import { towerDef } from "./tower";
 import { dustStormDef } from "./duststorm";
 
-export const ARTIFACTS: ArtifactDef[] = [hillDef, towerDef, dustStormDef];
+export const ARTIFACTS: ArtifactDef[] = [hillDef, mountainDef, towerDef, dustStormDef];
 
 export interface CategoryDef {
   id: ArtifactCategory;
