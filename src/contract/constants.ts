@@ -1,12 +1,19 @@
 // Single source of truth for the AI-generation contract (see the game's art plan §4b).
 // 1 unit = one hex circumradius. Y-up, +Z = north, base sits on Y = 0.
 
-export type ArtifactType = "hill" | "tower" | "duststorm" | "mountain";
+export type ArtifactType =
+  | "hill"
+  | "tower"
+  | "duststorm"
+  | "mountain"
+  | "rift"
+  | "mossdunes"
+  | "spires";
 export type OutputKind = "mesh" | "effect";
 
 /** Which mesh contract a mesh artifact is held to. Several artifact types can share one
  *  (e.g. all three mountains use "mountain"). */
-export type ContractKey = "hill" | "tower" | "mountain";
+export type ContractKey = "hill" | "tower" | "mountain" | "rift" | "mossdunes" | "spires";
 
 export interface MeshContract {
   /** Target footprint in hex-circumradius units (X and Z). */
@@ -55,6 +62,37 @@ export const MESH_CONTRACTS: Record<ContractKey, MeshContract> = {
     triBudget: 3000,
     metalness: 0,
     roughness: 0.9,
+  },
+  // A trench/canyon carved into a ground slab: base (trench floor) on Y=0, the surrounding
+  // plateau rim is the bbox top, so `height` is the canyon depth.
+  rift: {
+    footprint: 1.8,
+    height: 0.45,
+    sizeTolerance: 0.4,
+    color: "#7A5A2E", // dry ochre seabed rock
+    triBudget: 4000,
+    metalness: 0,
+    roughness: 0.95,
+  },
+  // Low rolling moss-carpeted dunes across the dead-sea bottom.
+  mossdunes: {
+    footprint: 1.8,
+    height: 0.4,
+    sizeTolerance: 0.4,
+    color: "#A9852F", // yellowish-ochre Barsoomian moss
+    triBudget: 4000,
+    metalness: 0,
+    roughness: 1,
+  },
+  // Cluster of sharp mineral spires jutting up — a tall collision hazard.
+  spires: {
+    footprint: 1.6,
+    height: 1.7,
+    sizeTolerance: 0.35,
+    color: "#9A7FB0", // pale amethyst crystal (fallback)
+    triBudget: 4000,
+    metalness: 0.1,
+    roughness: 0.6,
   },
 };
 

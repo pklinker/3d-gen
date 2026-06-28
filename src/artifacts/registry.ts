@@ -1,10 +1,21 @@
 import type { ArtifactCategory, ArtifactDef, ArtifactType } from "../types";
 import { hillDef } from "./hill";
 import { mountainDef } from "./mountain";
+import { riftDef } from "./rift";
+import { mossDunesDef } from "./mossdunes";
+import { spiresDef } from "./spires";
 import { towerDef } from "./tower";
 import { dustStormDef } from "./duststorm";
 
-export const ARTIFACTS: ArtifactDef[] = [hillDef, mountainDef, towerDef, dustStormDef];
+export const ARTIFACTS: ArtifactDef[] = [
+  hillDef,
+  mountainDef,
+  riftDef,
+  mossDunesDef,
+  spiresDef,
+  towerDef,
+  dustStormDef,
+];
 
 export interface CategoryDef {
   id: ArtifactCategory;
