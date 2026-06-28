@@ -8,12 +8,22 @@ export type ArtifactType =
   | "mountain"
   | "rift"
   | "mossdunes"
-  | "spires";
+  | "spires"
+  | "atmosphere"
+  | "ramparts";
 export type OutputKind = "mesh" | "effect";
 
 /** Which mesh contract a mesh artifact is held to. Several artifact types can share one
  *  (e.g. all three mountains use "mountain"). */
-export type ContractKey = "hill" | "tower" | "mountain" | "rift" | "mossdunes" | "spires";
+export type ContractKey =
+  | "hill"
+  | "tower"
+  | "mountain"
+  | "rift"
+  | "mossdunes"
+  | "spires"
+  | "atmosphere"
+  | "ramparts";
 
 export interface MeshContract {
   /** Target footprint in hex-circumradius units (X and Z). */
@@ -93,6 +103,28 @@ export const MESH_CONTRACTS: Record<ContractKey, MeshContract> = {
     triBudget: 4000,
     metalness: 0.1,
     roughness: 0.6,
+  },
+  // Atmosphere plant: a domed tech core on a drum, ringed by industrial conduits with
+  // vent nozzles — a tall piece of Martian infrastructure.
+  atmosphere: {
+    footprint: 1.6,
+    height: 1.4,
+    sizeTolerance: 0.3,
+    color: "#6E7B73", // oxidized patina metal
+    triBudget: 5000,
+    metalness: 0.25,
+    roughness: 0.65,
+  },
+  // Walled-city ramparts: a crenellated defensive perimeter with a central gate and
+  // angled buttresses — base on Y=0, height is the wall crown.
+  ramparts: {
+    footprint: 1.8,
+    height: 0.8,
+    sizeTolerance: 0.3,
+    color: "#9A8C70", // sun-bleached sandstone
+    triBudget: 5000,
+    metalness: 0,
+    roughness: 0.95,
   },
 };
 

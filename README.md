@@ -46,6 +46,8 @@ registry line.
 |---|---|---|---|
 | **Terrain** | Hill / Mesa | `.glb` | broad, low, flat-topped, faceted ochre |
 | **Buildings** | Ruined Tower | `.glb` | slender crumbling spire, pale marble |
+| **Buildings** | Atmosphere Plant | `.glb` | domed tech core, conduits + vent ports, patina metal |
+| **Buildings** | City Ramparts | `.glb` | crenellated wall, central gate, buttresses, sandstone |
 | **Effects** | Dust Storm | sprite sheet + JSON | looping billboard animation |
 
 ---
@@ -108,6 +110,8 @@ one hex circumradius, Y-up, `+Z` = north, base on `Y=0`):
 |---|---|---|---|---|
 | Hill | ≈ 1.8 units | ≈ 0.55 | ≤ 3000 | matte, ochre `#80592A` |
 | Tower | ≈ 0.8 units | ≈ 1.5 | ≤ 3000 | matte, marble `#9A948A` |
+| Atmosphere | ≈ 1.6 units | ≈ 1.4 | ≤ 5000 | patina metal `#6E7B73` |
+| Ramparts | ≈ 1.8 units | ≈ 0.8 | ≤ 5000 | matte, sandstone `#9A8C70` |
 
 Anything you generate is conformed toward these targets and then validated against
 them.

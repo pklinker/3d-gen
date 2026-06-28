@@ -5,6 +5,8 @@ import { riftDef } from "./rift";
 import { mossDunesDef } from "./mossdunes";
 import { spiresDef } from "./spires";
 import { towerDef } from "./tower";
+import { atmosphereDef } from "./atmosphere";
+import { rampartsDef } from "./ramparts";
 import { dustStormDef } from "./duststorm";
 
 export const ARTIFACTS: ArtifactDef[] = [
@@ -14,6 +16,8 @@ export const ARTIFACTS: ArtifactDef[] = [
   mossDunesDef,
   spiresDef,
   towerDef,
+  atmosphereDef,
+  rampartsDef,
   dustStormDef,
 ];
 
