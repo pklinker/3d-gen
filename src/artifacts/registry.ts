@@ -13,6 +13,11 @@ import { pumpStationDef } from "./pumpStation";
 import { observatoryDef } from "./observatory";
 import { incubatorDef } from "./incubator";
 import { skyVillaDef } from "./skyVilla";
+import { fighterDef } from "./fighter";
+import { attackDef } from "./attack";
+import { scoutDef } from "./scout";
+import { lightCruiserDef } from "./lightCruiser";
+import { cruiserDef } from "./cruiser";
 import { dustStormDef } from "./duststorm";
 import { heatHazeDef } from "./heathaze";
 import { radiumStormDef } from "./radiumstorm";
@@ -32,6 +37,11 @@ export const ARTIFACTS: ArtifactDef[] = [
   observatoryDef,
   incubatorDef,
   skyVillaDef,
+  fighterDef,
+  attackDef,
+  scoutDef,
+  lightCruiserDef,
+  cruiserDef,
   dustStormDef,
   heatHazeDef,
   radiumStormDef,
@@ -57,6 +67,7 @@ export interface CategoryTreeNode {
 export const CATEGORIES: CategoryDef[] = [
   { id: "terrain", label: "Terrain" },
   { id: "buildings", label: "Buildings" },
+  { id: "ships", label: "Ships" },
   { id: "effects", label: "Effects" },
 ];
 

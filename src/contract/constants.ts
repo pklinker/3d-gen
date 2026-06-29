@@ -17,6 +17,11 @@ export type ArtifactType =
   | "observatory"
   | "incubator"
   | "skyVilla"
+  | "fighter"
+  | "attack"
+  | "scout"
+  | "lightCruiser"
+  | "cruiser"
   | "heathaze"
   | "radiumstorm";
 export type OutputKind = "mesh" | "effect";
@@ -37,7 +42,12 @@ export type ContractKey =
   | "pumpStation"
   | "observatory"
   | "incubator"
-  | "skyVilla";
+  | "skyVilla"
+  | "fighter"
+  | "attack"
+  | "scout"
+  | "lightCruiser"
+  | "cruiser";
 
 export interface MeshContract {
   /** Target footprint in hex-circumradius units (X and Z). */
@@ -205,6 +215,65 @@ export const MESH_CONTRACTS: Record<ContractKey, MeshContract> = {
     triBudget: 7000,
     metalness: 0.1,
     roughness: 0.7,
+  },
+  // One-man Flier (Fighter): a slender wooden airboat hull with a scrolled prow, a small
+  // brass cockpit cabin, a stern mast + pennant, and a radial pusher propeller flanked by
+  // tail vanes. Long along Z (the keel axis); height is the masthead. A flying craft, so
+  // the "base on Y=0" anchor just rests the keel on the ground plane in the editor.
+  fighter: {
+    footprint: 1.6,
+    height: 0.75,
+    sizeTolerance: 0.45,
+    color: "#6E4A2A", // oiled hull timber
+    triBudget: 6000,
+    metalness: 0.2,
+    roughness: 0.6,
+  },
+  // Twin-engine Attack ship: a streamlined wooden fuselage with a glass canopy, a forward
+  // nose cannon, and two wing-mounted tractor engines, twin-finned at the tail. Long along Z;
+  // height is the canopy/tail. A flying craft, so the Y=0 anchor just rests it on the plane.
+  attack: {
+    footprint: 1.6,
+    height: 0.45,
+    sizeTolerance: 0.45,
+    color: "#6E4A2A", // oiled hull timber
+    triBudget: 6000,
+    metalness: 0.2,
+    roughness: 0.6,
+  },
+  // Cruiser: light cruiser hull + forward turret + a second twin-barrelled turret at the
+  // stern, covering the rear arc. Otherwise identical proportions to the light cruiser.
+  cruiser: {
+    footprint: 1.8,
+    height: 0.85,
+    sizeTolerance: 0.45,
+    color: "#4A3010", // darker oiled timber to distinguish from Light Cruiser
+    triBudget: 8000,
+    metalness: 0.2,
+    roughness: 0.65,
+  },
+  // Light Cruiser: a wide timber airboat hull with a two-tier superstructure cabin, a
+  // forward gun turret with twin barrels, and two rear pusher engines on stern outriggers.
+  lightCruiser: {
+    footprint: 1.8,
+    height: 0.85,
+    sizeTolerance: 0.45,
+    color: "#5A3A1A", // dark oiled hull timber
+    triBudget: 7000,
+    metalness: 0.2,
+    roughness: 0.65,
+  },
+  // Scout: a fighter-style timber airboat hull with a scrolled prow and cockpit cabin, but
+  // driven by two rear pusher engines on stern outriggers. Long along Z; height is the mast.
+  // A flying craft, so the "base on Y=0" anchor just rests the keel on the ground plane.
+  scout: {
+    footprint: 1.6,
+    height: 0.6,
+    sizeTolerance: 0.45,
+    color: "#6E4A2A", // oiled hull timber
+    triBudget: 6000,
+    metalness: 0.2,
+    roughness: 0.6,
   },
 };
 

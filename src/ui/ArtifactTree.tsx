@@ -1,5 +1,5 @@
 import { groupedTree, getArtifact } from "../artifacts/registry";
-import type { ArtifactCategory, ArtifactType } from "../types";
+import type { ArtifactType } from "../types";
 
 interface Props {
   currentType: ArtifactType;
