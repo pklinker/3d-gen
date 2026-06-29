@@ -144,6 +144,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .filename { font-family: ui-monospace, monospace; font-size: 13px; color: var(--accent); }
 .status { font-size: 12px; color: var(--ok); }
 
+.settings-section { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
+.settings-toggle { width: 100%; text-align: left; font-size: 12px; color: var(--muted); background: none; border: none; padding: 2px 0; cursor: pointer; }
+.settings-toggle:hover { color: var(--text); border-color: transparent; }
+.settings-body { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.settings-label { font-size: 12px; color: var(--muted); }
+.settings-row { display: flex; gap: 6px; }
+.settings-input { flex: 1; background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 8px; font-size: 12px; font-family: ui-monospace, monospace; min-width: 0; }
+.settings-input:focus { outline: none; border-color: var(--accent); }
+
 .prompt-tab { display: flex; flex-direction: column; gap: 8px; }
 .prompt-tab textarea { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px; font-size: 12px; resize: vertical; }
 

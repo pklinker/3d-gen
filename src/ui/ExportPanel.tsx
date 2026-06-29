@@ -1,10 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { ArtifactDef, GeneratedEffect, ParamValues } from "../types";
 import { exportGlb, downloadBlob } from "../export/gltfExport";
 import { exportEffect } from "../export/spriteExport";
 import { creditsLine, creditsNote } from "../export/credits";
-import { getTarget, saveToGame, type SaveTarget } from "../export/saveToGame";
+import {
+  getTarget,
+  saveToGame,
+  getSettings,
+  updateSettings,
+  CATEGORY_DIRS,
+  type SaveTarget,
+  type AppSettings,
+} from "../export/saveToGame";
 
 interface Props {
   def: ArtifactDef;
@@ -13,7 +21,7 @@ interface Props {
   geometry: THREE.BufferGeometry | null;
   material: THREE.Material | null;
   canExportMesh: boolean;
-  source: string; // "procedural" or provider name
+  source: string;
   effect: GeneratedEffect | null;
 }
 
@@ -31,11 +39,23 @@ export default function ExportPanel({
   const [status, setStatus] = useState<string | null>(null);
   const [target, setTarget] = useState<SaveTarget | null>(null);
   const [toGame, setToGame] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [, setSettings] = useState<AppSettings | null>(null);
+  const [gameDirInput, setGameDirInput] = useState("");
+  const [settingsStatus, setSettingsStatus] = useState<string | null>(null);
+  const settingsSaved = useRef(false);
 
   useEffect(() => {
     getTarget().then(setTarget);
+    getSettings().then((s) => {
+      if (s) {
+        setSettings(s);
+        setGameDirInput(s.gameDir);
+      }
+    });
   }, []);
 
+  const assetSubdir = CATEGORY_DIRS[def.category] ?? "assets/terrain";
   const stem = `${def.fileStem}_${variant}`;
   const glbName = `${stem}.glb`;
   const canDirect = !!target?.reachable && toGame;
@@ -69,7 +89,7 @@ export default function ExportPanel({
     try {
       const { files, credits } = await buildOutputs();
       if (canDirect) {
-        const res = await saveToGame(files, credits);
+        const res = await saveToGame(files, credits, def.category);
         setStatus(`Wrote ${res.written.join(", ")} → ${res.dir}`);
       } else {
         for (const f of files) {
@@ -86,6 +106,23 @@ export default function ExportPanel({
       }
     } catch (e) {
       setStatus(`Export failed: ${(e as Error).message}`);
+    }
+  }
+
+  async function handleSaveSettings() {
+    if (!gameDirInput.trim()) return;
+    setSettingsStatus("saving…");
+    settingsSaved.current = false;
+    try {
+      const updated = await updateSettings({ gameDir: gameDirInput.trim() });
+      setSettings(updated);
+      setSettingsStatus("Saved.");
+      settingsSaved.current = true;
+      // Re-check reachability with the new game dir.
+      const t = await getTarget();
+      setTarget(t);
+    } catch (e) {
+      setSettingsStatus(`Failed: ${(e as Error).message}`);
     }
   }
 
@@ -122,7 +159,7 @@ export default function ExportPanel({
         />
         Write into game{" "}
         {target?.reachable ? (
-          <code title={target.terrainDir}>assets/terrain/</code>
+          <code title={target.gameDir}>{assetSubdir}/</code>
         ) : (
           <span className="muted small">(unreachable — will download)</span>
         )}
@@ -140,6 +177,39 @@ export default function ExportPanel({
         </div>
       )}
       {status && <div className="status">{status}</div>}
+
+      <div className="settings-section">
+        <button
+          className="settings-toggle"
+          onClick={() => setShowSettings((v) => !v)}
+        >
+          {showSettings ? "▲" : "▼"} Settings
+        </button>
+        {showSettings && (
+          <div className="settings-body">
+            <label className="settings-label">Game directory</label>
+            <div className="settings-row">
+              <input
+                type="text"
+                className="settings-input"
+                value={gameDirInput}
+                onChange={(e) => {
+                  setGameDirInput(e.target.value);
+                  setSettingsStatus(null);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveSettings()}
+                placeholder="/path/to/game"
+                spellCheck={false}
+              />
+              <button onClick={handleSaveSettings}>Save</button>
+            </div>
+            <div className="muted small">
+              Assets export into <code>{assetSubdir}/</code> inside this folder.
+            </div>
+            {settingsStatus && <div className="status">{settingsStatus}</div>}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
