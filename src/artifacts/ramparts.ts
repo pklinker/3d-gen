@@ -101,6 +101,33 @@ function buttress(P: number[], I: number[], theta: number, hTop: number, extend:
 }
 
 /**
+ * A deco cornice string-course block over perimeter arc [t0, t1]: a thin prism between y0 and
+ * y1 that projects `lip` proud of the hex edge, so a continuous banded ledge wraps the wall.
+ */
+function corniceBlock(
+  P: number[], I: number[],
+  t0: number, t1: number, y0: number, y1: number, lip: number, inset: number,
+): void {
+  const a0 = t0 * Math.PI * 2, a1 = t1 * Math.PI * 2;
+  const rO0 = hexR(a0) + lip, rO1 = hexR(a1) + lip;
+  const rI0 = Math.max(0.02, hexR(a0) - inset), rI1 = Math.max(0.02, hexR(a1) - inset);
+  const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+  const ob0 = vert(P, c0 * rO0, y0, s0 * rO0), ob1 = vert(P, c1 * rO1, y0, s1 * rO1);
+  const ib1 = vert(P, c1 * rI1, y0, s1 * rI1), ib0 = vert(P, c0 * rI0, y0, s0 * rI0);
+  const ot0 = vert(P, c0 * rO0, y1, s0 * rO0), ot1 = vert(P, c1 * rO1, y1, s1 * rO1);
+  const it1 = vert(P, c1 * rI1, y1, s1 * rI1), it0 = vert(P, c0 * rI0, y1, s0 * rI0);
+  let cx = 0, cy = 0, cz = 0;
+  for (const v of [ob0, ob1, ib1, ib0, ot0, ot1, it1, it0]) { cx += P[v * 3]; cy += P[v * 3 + 1]; cz += P[v * 3 + 2]; }
+  cx /= 8; cy /= 8; cz /= 8;
+  outQuad(P, I, ob0, ob1, ot1, ot0, cx, cy, cz); // outer
+  outQuad(P, I, ib0, ib1, it1, it0, cx, cy, cz); // inner
+  outQuad(P, I, ot0, ot1, it1, it0, cx, cy, cz); // top
+  outQuad(P, I, ob0, ob1, ib1, ib0, cx, cy, cz); // bottom
+  outQuad(P, I, ob0, ot0, it0, ib0, cx, cy, cz); // end t0
+  outQuad(P, I, ob1, ot1, it1, ib1, cx, cy, cz); // end t1
+}
+
+/**
  * Walled-city ramparts: a crenellated hexagonal perimeter wall with real thickness, broken by
  * a central gate and braced by angled buttresses. Crenellation frequency sets the merlon count
  * around the crown; gate width opens a gap on the +X edge for low-altitude flyers to thread;
@@ -115,6 +142,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   const gateFrac = p.gateWidth as number; // gap as a fraction of the full loop
   const buttressScale = p.buttress as number;
   const baseColor = p.baseColor as string;
+  const orn = (p.ornament as number) ?? 0;
 
   const P: number[] = [];
   const I: number[] = [];
@@ -146,6 +174,22 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
       let d = Math.abs(tc - gateCenter); d = Math.min(d, 1 - d);
       if (d < gateFrac / 2 + 0.04) continue;
       buttress(P, I, theta, hTop, extend, halfW);
+    }
+  }
+
+  // Deco ornamentation: a cornice string-course banding the wall below the merlons, with a
+  // second lower course at higher levels. Skips the gate gap; lip/courses scale with the slider.
+  if (orn > 0.05) {
+    const lip = 0.02 + 0.04 * orn;
+    const courseT = 0.04 + 0.04 * orn;
+    const courses = orn > 0.5 ? [wallH * 0.62, wallH * 0.3] : [wallH * 0.62];
+    for (const cy of courses) {
+      for (let k = 0; k < blocks; k++) {
+        const t0 = k / blocks, t1 = (k + 1) / blocks, tc = (t0 + t1) / 2;
+        let d = Math.abs(tc - gateCenter); d = Math.min(d, 1 - d);
+        if (d < gateFrac / 2) continue;
+        corniceBlock(P, I, t0, t1, cy, cy + courseT, lip, thick * 0.6);
+      }
     }
   }
 

@@ -35,6 +35,9 @@ export default function App() {
   const seed = seedByType[type];
 
   const [tab, setTab] = useState<Tab>("procedural");
+  // Global "Deco Ornamentation" level for the Buildings tab: 0 = brutalist/blocky,
+  // 1 = full art-deco cornices, ribs and chevron banding. Merged into building params.
+  const [ornament, setOrnament] = useState(0.4);
   const [snapRotation, setSnapRotation] = useState(true);
   const [fieldRotation, setFieldRotation] = useState(0);
   const [readCheck, setReadCheck] = useState(false);
@@ -57,14 +60,18 @@ export default function App() {
     if (aiGeometry) {
       rawGeo = aiGeometry;
     } else {
-      const res = def.generate(seed, params);
+      // Buildings consume the global ornamentation level (and the hex-mask flag, so a
+      // square-footprint asset can switch to a hex-conforming base) alongside their own params.
+      const genParams =
+        def.category === "buildings" ? { ...params, ornament, fitToHex: hexMask } : params;
+      const res = def.generate(seed, genParams);
       rawGeo = (res as { geometry: THREE.BufferGeometry }).geometry;
     }
     const { geometry, report } = conformGeometry(rawGeo, contract, { fitToHex: hexMask });
     const material = makeContractMaterial(contract);
     const validation = validateMesh(geometry, contract);
     return { effect: null as GeneratedEffect | null, geometry, material, validation, report };
-  }, [def, type, seed, params, aiGeometry, hexMask]);
+  }, [def, type, seed, params, aiGeometry, hexMask, ornament]);
 
   function setParam(key: string, value: number | boolean | string) {
     setAiGeometry(null); // editing params returns to procedural
@@ -147,6 +154,24 @@ export default function App() {
         {tab === "procedural" || def.output === "effect" ? (
           <>
             <ParamPanel specs={def.params} values={params} onChange={setParam} />
+            {def.category === "buildings" && (
+              <div className="param-row ornament">
+                <label title="0 = brutalist/blocky; 1 = full art-deco cornices, ribs and chevrons">
+                  Deco Ornamentation
+                </label>
+                <div className="slider">
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={ornament}
+                    onChange={(e) => setOrnament(Number(e.target.value))}
+                  />
+                  <span className="val">{ornament.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
             <div className="seed-row">
               <label>Seed</label>
               <input

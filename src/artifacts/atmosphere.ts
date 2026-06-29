@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { makeRng, facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { ring, fluting } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.atmosphere;
 const HALF = C.footprint / 2;
@@ -116,6 +117,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   const pipeCount = Math.max(0, Math.round(p.pipes as number));
   const ventCount = Math.max(0, Math.round(p.vents as number));
   const baseColor = p.baseColor as string;
+  const orn = (p.ornament as number) ?? 0;
 
   const P: number[] = [];
   const I: number[] = [];
@@ -152,6 +154,16 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
     const tx = Math.cos(ang) * (domeR * 0.9);
     const tz = Math.sin(ang) * (domeR * 0.9);
     tube(P, I, [px, h, pz], [tx, Math.min(drumH, h), tz], pr * 0.8, 5, true, true);
+  }
+
+  // Deco ornamentation: cornice bands ringing the drum, with vertical chevron fluting up its
+  // face at higher levels. Count/gauge scale with the global slider.
+  if (orn > 0.05) {
+    ring(P, I, 0, drumH * 0.96, 0, domeR * 1.04, 0.018 + 0.03 * orn, Math.max(12, lon), 5);
+    ring(P, I, 0, drumH * 0.45, 0, domeR * 1.03, 0.014 + 0.024 * orn, Math.max(12, lon), 5);
+    if (orn > 0.5) {
+      fluting(P, I, drumH * 0.08, drumH * 0.9, domeR * 1.01, 0.018 + 0.018 * orn, Math.max(6, Math.round(lon)), 3);
+    }
   }
 
   const geo = new THREE.BufferGeometry();

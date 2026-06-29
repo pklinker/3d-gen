@@ -11,6 +11,12 @@ export type ArtifactType =
   | "spires"
   | "atmosphere"
   | "ramparts"
+  | "mooringSpire"
+  | "landingStage"
+  | "pumpStation"
+  | "observatory"
+  | "incubator"
+  | "skyVilla"
   | "heathaze"
   | "radiumstorm";
 export type OutputKind = "mesh" | "effect";
@@ -25,7 +31,13 @@ export type ContractKey =
   | "mossdunes"
   | "spires"
   | "atmosphere"
-  | "ramparts";
+  | "ramparts"
+  | "mooringSpire"
+  | "landingStage"
+  | "pumpStation"
+  | "observatory"
+  | "incubator"
+  | "skyVilla";
 
 export interface MeshContract {
   /** Target footprint in hex-circumradius units (X and Z). */
@@ -127,6 +139,72 @@ export const MESH_CONTRACTS: Record<ContractKey, MeshContract> = {
     triBudget: 5000,
     metalness: 0,
     roughness: 0.95,
+  },
+  // Radium Mooring Spire: a slender art-deco tower with vertical fins and a glowing
+  // emitter segment, crowned by a grapple ring that secures a flyer's nose. Tall hazard.
+  mooringSpire: {
+    footprint: 0.8,
+    height: 2.0,
+    sizeTolerance: 0.3,
+    color: "#B7C0C8", // pale anodized steel
+    triBudget: 6000,
+    metalness: 0.45,
+    roughness: 0.45,
+  },
+  // Fleet Landing Stage: a multi-tiered stone stepped pyramid topped by a flared metal
+  // landing platform with a side gantry — base on Y=0, a low broad warship berth.
+  landingStage: {
+    footprint: 1.8,
+    height: 1.0,
+    sizeTolerance: 0.3,
+    color: "#9A8C70", // sun-bleached sandstone base
+    triBudget: 7000,
+    metalness: 0.15,
+    roughness: 0.8,
+  },
+  // Water Inflow Pumping Station: an ornate domed canal house spanning a vaulted arch,
+  // wrapped in heavy external conduits — broad and squat over the grand canals.
+  pumpStation: {
+    footprint: 1.7,
+    height: 1.0,
+    sizeTolerance: 0.3,
+    color: "#8A8472", // weathered canal stone
+    triBudget: 7000,
+    metalness: 0.2,
+    roughness: 0.7,
+  },
+  // Astronomical Observatory / Astrological Minaret: a hyper-tall slender minaret topped
+  // with a brass telescope barrel and counterweights — a precarious vertical hazard.
+  observatory: {
+    footprint: 0.75,
+    height: 2.3,
+    sizeTolerance: 0.35,
+    color: "#A89B86", // pale stone shaft (brass instrument painted in generator)
+    triBudget: 6000,
+    metalness: 0.25,
+    roughness: 0.55,
+  },
+  // Fluted Incubator Vault: a heavily reinforced sloping dome with structural ribs and
+  // ventilation fins — squat, armoured, deflecting artillery.
+  incubator: {
+    footprint: 1.6,
+    height: 0.95,
+    sizeTolerance: 0.3,
+    color: "#9A8C70", // reinforced sandstone
+    triBudget: 7000,
+    metalness: 0.05,
+    roughness: 0.85,
+  },
+  // Aristocrat's Sky-Villa / Spire-Palace: a top-heavy residential tower of stacked
+  // cantilevered balcony tiers on a narrow base, with sweeping awnings. Tall hazard.
+  skyVilla: {
+    footprint: 1.0,
+    height: 1.9,
+    sizeTolerance: 0.35,
+    color: "#C4B69C", // sunlit ivory plaster
+    triBudget: 7000,
+    metalness: 0.1,
+    roughness: 0.7,
   },
 };
 

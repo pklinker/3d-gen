@@ -7,6 +7,12 @@ import { spiresDef } from "./spires";
 import { towerDef } from "./tower";
 import { atmosphereDef } from "./atmosphere";
 import { rampartsDef } from "./ramparts";
+import { mooringSpireDef } from "./mooringSpire";
+import { landingStageDef } from "./landingStage";
+import { pumpStationDef } from "./pumpStation";
+import { observatoryDef } from "./observatory";
+import { incubatorDef } from "./incubator";
+import { skyVillaDef } from "./skyVilla";
 import { dustStormDef } from "./duststorm";
 import { heatHazeDef } from "./heathaze";
 import { radiumStormDef } from "./radiumstorm";
@@ -20,6 +26,12 @@ export const ARTIFACTS: ArtifactDef[] = [
   towerDef,
   atmosphereDef,
   rampartsDef,
+  mooringSpireDef,
+  landingStageDef,
+  pumpStationDef,
+  observatoryDef,
+  incubatorDef,
+  skyVillaDef,
   dustStormDef,
   heatHazeDef,
   radiumStormDef,

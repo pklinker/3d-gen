@@ -7,6 +7,7 @@ import {
   facet,
   shade,
 } from "../generation/proceduralEngine";
+import { ring } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.tower;
 
@@ -47,6 +48,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   const wallFrac = p.wall as number;
   const blockJitter = p.blockJitter as number;
   const lean = p.lean as number;
+  const orn = (p.ornament as number) ?? 0;
 
   // Per-side "broken" top height as a fraction of full height. Built from a couple
   // of low-frequency waves (plus a little jitter) so neighbouring sides have similar
@@ -129,6 +131,17 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   for (let s = 1; s < sides - 1; s++) {
     indices.push(outer[0][0], outer[s + 1][0], outer[s][0]);
     indices.push(inner[0][0], inner[s][0], inner[s + 1][0]);
+  }
+
+  // Deco ornamentation: art-deco cornice bands wrapping the shaft, following its taper and
+  // lean. Count and gauge scale with the global slider; bands stay below the broken crown.
+  if (orn > 0.05) {
+    const bandFracs = orn > 0.5 ? [0.26, 0.5] : [0.34];
+    for (const f of bandFracs) {
+      const y = height * f;
+      const radO = radius * (1 - taper * (y / height));
+      ring(positions, indices, lx * y, y, lz * y, radO * 1.05, 0.02 + 0.045 * orn, Math.max(12, sides), 5);
+    }
   }
 
   const geo = new THREE.BufferGeometry();
