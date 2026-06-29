@@ -54,6 +54,8 @@ export interface ArtifactDef {
   fileStem: string;
   /** Default AI prompt seed (mesh types only). */
   promptSeed?: string;
+  /** Optional subcategory id — enables a third level in the artifact tree. */
+  subcategory?: string;
 }
 
 export function defaultParams(specs: ParamSpec[]): ParamValues {

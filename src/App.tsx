@@ -5,9 +5,10 @@ import ParamPanel from "./ui/ParamPanel";
 import ValidationPanel from "./ui/ValidationPanel";
 import ExportPanel from "./ui/ExportPanel";
 import PromptTab from "./ui/PromptTab";
-import { ARTIFACTS, CATEGORIES, artifactsInCategory, getArtifact } from "./artifacts/registry";
+import { ARTIFACTS, getArtifact } from "./artifacts/registry";
+import ArtifactTree from "./ui/ArtifactTree";
 import { defaultParams } from "./types";
-import type { ArtifactCategory, ArtifactType, GeneratedEffect, ParamValues } from "./types";
+import type { ArtifactType, GeneratedEffect, ParamValues } from "./types";
 import { conformGeometry, makeContractMaterial } from "./generation/conform";
 import type { ConformReport } from "./generation/conform";
 import { validateMesh } from "./contract/validate";
@@ -94,13 +95,6 @@ export default function App() {
     setSource("procedural");
     if (getArtifact(t).output === "effect") setTab("procedural");
   }
-  // Picking a category selects its first artifact (no-op if already inside it).
-  function selectCategory(cat: ArtifactCategory) {
-    if (cat === def.category) return;
-    const first = artifactsInCategory(cat)[0];
-    if (first) selectType(first.type);
-  }
-
   async function onLoadPreset(file: File) {
     const p = await loadPreset(file);
     setType(p.type);
@@ -116,30 +110,14 @@ export default function App() {
       <aside className="panel left">
         <h1>Terrain Artifact Editor</h1>
 
-        <div className="category-tabs">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.id}
-              className={c.id === def.category ? "active" : ""}
-              onClick={() => selectCategory(c.id)}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+        <ArtifactTree
+          currentType={type}
+          onSelectType={selectType}
+        />
 
-        <div className="type-tabs">
-          {artifactsInCategory(def.category).map((a) => (
-            <button
-              key={a.type}
-              className={a.type === type ? "active" : ""}
-              onClick={() => selectType(a.type)}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
-
+        {def.output === "mesh" && (
+          <h2>Generation</h2>
+        )}
         {def.output === "mesh" && (
           <div className="subtabs">
             <button className={tab === "procedural" ? "active" : ""} onClick={() => setTab("procedural")}>
@@ -179,7 +157,7 @@ export default function App() {
                 value={seed}
                 onChange={(e) => setSeed(Number(e.target.value))}
               />
-              <button onClick={randomize}>🎲</button>
+              <button onClick={randomize} title="Randomize seed" aria-label="Randomize seed">🎲</button>
             </div>
           </>
         ) : (

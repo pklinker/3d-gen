@@ -49,13 +49,43 @@ button.primary { background: var(--accent); color: #1a1710; border: none; width:
 button.primary:disabled { background: #4a4636; color: var(--muted); cursor: not-allowed; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.type-tabs, .subtabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.subtabs { display: flex; gap: 6px; margin-bottom: 14px; }
 .subtabs button { flex: 1; }
 
-/* Top-level category tabs: a segmented row above the per-category artifact tabs. */
-.category-tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-.category-tabs button { flex: 1; font-size: 12px; padding: 6px 4px; }
-.type-tabs { gap: 6px; }
+/* Artifact tree — replaces flat category-tabs + type-tabs */
+.artifact-tree { display: flex; flex-direction: column; margin-bottom: 10px; }
+
+.tree-cat-header {
+  width: 100%; text-align: left;
+  background: transparent; border: 1px solid transparent;
+  color: var(--muted); font-size: 13px; padding: 6px 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.tree-cat-header:hover { background: var(--panel2); color: var(--text); border-color: transparent; }
+.tree-cat-header.open { color: var(--text); }
+.tree-chevron {
+  font-size: 9px; display: inline-block; line-height: 1;
+  transition: transform 0.15s ease-out;
+}
+.tree-cat-header.open .tree-chevron { transform: rotate(90deg); }
+
+.tree-leaves {
+  margin-left: 16px; margin-bottom: 4px;
+  border-left: 1px solid var(--border);
+  padding-left: 4px;
+  display: flex; flex-direction: column;
+}
+
+.tree-leaf {
+  width: 100%; text-align: left;
+  background: transparent; border: 1px solid transparent;
+  color: var(--text); font-size: 13px; padding: 5px 10px;
+}
+.tree-leaf:hover { border-color: var(--accent); background: transparent; }
+.tree-leaf.active { background: var(--accent); color: #1a1710; border-color: var(--accent); }
+
+.tree-subgroup { display: flex; flex-direction: column; }
+.tree-subcat-header { font-size: 11px; color: var(--muted); padding: 4px 10px 2px; letter-spacing: 0.05em; }
 
 .params { display: flex; flex-direction: column; gap: 10px; }
 .param-row { display: flex; flex-direction: column; gap: 4px; }
