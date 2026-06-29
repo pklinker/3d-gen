@@ -39,7 +39,7 @@ function tunnelBlock(
   const v = (x: number, y: number, z: number): number => { P.push(x, y, z); return P.length / 3 - 1; };
 
   for (const z of [bz, -bz]) {
-    const ns: [number, number, number] = [0, topY / 2, z + (z > 0 ? 1 : -1)]; // ref behind the face
+    const ns: [number, number, number] = [0, topY / 2, 0]; // building centre — ensures Z faces orient outward
     const a = arc(z);
     // left + right + top panels
     const lbl = v(-bx, 0, z), ltl = v(-bx, topY, z), ltr = v(-archR, topY, z);
