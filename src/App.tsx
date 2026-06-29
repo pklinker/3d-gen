@@ -38,6 +38,8 @@ export default function App() {
   const [snapRotation, setSnapRotation] = useState(true);
   const [fieldRotation, setFieldRotation] = useState(0);
   const [readCheck, setReadCheck] = useState(false);
+  // Persistent utility: clamp footprints inside the hex cell + show the cell overlay.
+  const [hexMask, setHexMask] = useState(false);
   const [source, setSource] = useState("procedural");
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -58,11 +60,11 @@ export default function App() {
       const res = def.generate(seed, params);
       rawGeo = (res as { geometry: THREE.BufferGeometry }).geometry;
     }
-    const { geometry, report } = conformGeometry(rawGeo, contract);
+    const { geometry, report } = conformGeometry(rawGeo, contract, { fitToHex: hexMask });
     const material = makeContractMaterial(contract);
     const validation = validateMesh(geometry, contract);
     return { effect: null as GeneratedEffect | null, geometry, material, validation, report };
-  }, [def, type, seed, params, aiGeometry]);
+  }, [def, type, seed, params, aiGeometry, hexMask]);
 
   function setParam(key: string, value: number | boolean | string) {
     setAiGeometry(null); // editing params returns to procedural
@@ -180,6 +182,21 @@ export default function App() {
             onChange={(e) => e.target.files?.[0] && onLoadPreset(e.target.files[0])}
           />
         </div>
+
+        <div className="utility">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={hexMask}
+              onChange={(e) => setHexMask(e.target.checked)}
+            />
+            Hex Boundary Mask
+          </label>
+          <span className="muted small">
+            Overlays the hex cell and fits the footprint within its edges so neighboring
+            hexes line up.
+          </span>
+        </div>
       </aside>
 
       {/* CENTER: viewport */}
@@ -191,6 +208,7 @@ export default function App() {
           fieldRotationDeg={fieldRotation}
           snapRotation={snapRotation}
           readCheck={readCheck}
+          hexMask={hexMask}
         />
         <div className="viewport-controls">
           <label>

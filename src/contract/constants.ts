@@ -141,5 +141,10 @@ export const MAP_BG = "#C8A86A";
 // Field-rotation cache granularity from the art plan (~15 deg).
 export const ROTATION_STEP_DEG = 15;
 
+// Pointy-top hex flat-to-flat width in circumradius units (= 2·apothem = √3). The optional
+// "fit to hex" conform mode pulls a mesh's footprint within this so it doesn't overhang the
+// hex's flat edges (the corners are the responsibility of the future hex-clip pass).
+export const HEX_FLAT_TO_FLAT = Math.sqrt(3);
+
 // Small-zoom read check size in px (the game blits at <= 256 px).
 export const READ_CHECK_PX = 256;

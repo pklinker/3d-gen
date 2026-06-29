@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { SimplifyModifier } from "three-stdlib";
-import { MESH_CONTRACTS, type ContractKey } from "../contract/constants";
+import { MESH_CONTRACTS, HEX_FLAT_TO_FLAT, type ContractKey } from "../contract/constants";
 import { applyVerticalGradient, facet, shade } from "./proceduralEngine";
 
 export interface ConformReport {
@@ -24,8 +24,15 @@ export interface ConformReport {
 export function conformGeometry(
   input: THREE.BufferGeometry,
   contract: ContractKey,
+  opts: { fitToHex?: boolean } = {},
 ): { geometry: THREE.BufferGeometry; report: ConformReport } {
   const C = MESH_CONTRACTS[contract];
+  // Hex boundary mask: pull the footprint within the hex's flat-to-flat width so features
+  // don't overhang the cell edges. Never upscales past the contract footprint, so types that
+  // already sit inside the hex (towers, spires, …) are unaffected.
+  const targetFootprint = opts.fitToHex
+    ? Math.min(C.footprint, HEX_FLAT_TO_FLAT)
+    : C.footprint;
   let geo = input.clone();
 
   const triBefore = triCount(geo);
@@ -44,7 +51,7 @@ export function conformGeometry(
   const extentX = bb.max.x - bb.min.x;
   const extentZ = bb.max.z - bb.min.z;
   const extent = Math.max(extentX, extentZ) || 1;
-  const scale = C.footprint / extent;
+  const scale = targetFootprint / extent;
   geo.scale(scale, scale, scale);
   // re-seat base to Y=0 after scaling (scale is about origin; base was at 0 so OK,
   // but guard against float drift)

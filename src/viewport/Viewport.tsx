@@ -25,6 +25,7 @@ interface ViewportProps {
   fieldRotationDeg: number;
   snapRotation: boolean;
   readCheck: boolean;
+  hexMask: boolean;
 }
 
 /** Hex ring at circumradius = 1 (pointy-top), drawn on the Y=0 plane. */
@@ -42,6 +43,39 @@ function HexFootprint() {
     <lineLoop geometry={geo}>
       <lineBasicMaterial color="#5a4218" />
     </lineLoop>
+  );
+}
+
+/**
+ * Faint filled hex cell, shown when the Hex Boundary Mask is on. Same pointy-top
+ * orientation/scale as HexFootprint so its edges mark exactly where "fit to hex" pulls the
+ * footprint to. Triangle-fan from the center; double-sided + depthWrite off so it reads as a
+ * ground tint under the model.
+ */
+function HexMaskFill() {
+  const geo = useMemo(() => {
+    const P: number[] = [0, 0, 0];
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i + Math.PI / 6;
+      P.push(Math.cos(a), 0, Math.sin(a));
+    }
+    const idx: number[] = [];
+    for (let i = 0; i < 6; i++) idx.push(0, 1 + i, 1 + ((i + 1) % 6));
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
+    g.setIndex(idx);
+    return g;
+  }, []);
+  return (
+    <mesh geometry={geo} position={[0, 0.0008, 0]}>
+      <meshBasicMaterial
+        color="#7a5a1e"
+        transparent
+        opacity={0.2}
+        depthWrite={false}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
 }
 
@@ -128,6 +162,7 @@ export default function Viewport(props: ViewportProps) {
         <ambientLight intensity={0.75} />
         <directionalLight position={[4, 6, 2]} intensity={1.1} castShadow />
         <Ground />
+        {props.hexMask && <HexMaskFill />}
         <HexFootprint />
         <Content {...props} />
         <OrbitControls

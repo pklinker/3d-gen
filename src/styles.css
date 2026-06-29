@@ -28,6 +28,7 @@ body { background: var(--bg); color: var(--text); }
   overflow-y: auto;
   border-right: 1px solid var(--border);
 }
+.panel.left { display: flex; flex-direction: column; }
 .panel.right { border-right: none; border-left: 1px solid var(--border); }
 
 h1 { font-size: 16px; margin: 0 0 16px; color: var(--accent); }
@@ -69,6 +70,13 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .presets { display: flex; gap: 6px; margin-top: 20px; }
 .presets button { flex: 1; }
+
+.utility {
+  margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.utility .check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.utility .check input { accent-color: var(--accent); }
 
 .viewport-wrap { position: relative; display: flex; flex-direction: column; }
 .viewport-wrap > div:first-child { flex: 1; }
