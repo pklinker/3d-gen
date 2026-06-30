@@ -1,6 +1,6 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
   tube, frustum, ring, dome, paintRange, buildGeometry,
 } from "../generation/primitives";
@@ -23,7 +23,8 @@ const params = [
  * columns tie the tiers; railings ring each deck; sail-like parasol awnings sweep over the
  * balconies (their droop set by the awning-curve slider) in a warm fabric tint. Ivory plaster.
  */
-function generate(_seed: number, p: ParamValues): GeneratedMesh {
+function generate(seed: number, p: ParamValues): GeneratedMesh {
+  const rng = makeRng(seed);
   const tiers = Math.max(2, Math.round(p.tiers as number));
   const cant = p.cant as number;
   const awning = p.awning as number;
@@ -52,8 +53,9 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
     ring(P, I, 0, y + 0.07, 0, r * 0.97, 0.018, 14, 4);
     if (k > 0) {
       const yb = yAt(k - 1), rb = rAt(k - 1);
+      const tiePhase = rng() * Math.PI * 2;
       for (let s = 0; s < 4; s++) {
-        const a = (s / 4) * Math.PI * 2 + 0.4;
+        const a = (s / 4) * Math.PI * 2 + tiePhase;
         tube(P, I,
           [Math.cos(a) * rb * 0.9, yb + 0.03, Math.sin(a) * rb * 0.9],
           [Math.cos(a) * r * 0.9, y - 0.03, Math.sin(a) * r * 0.9],
@@ -87,6 +89,10 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
 
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(C.color, 0.66), shade(C.color, 1.1));
+  // Seeded per-facet weathering on the plaster column/decks/finial — both ranges flanking
+  // the awning fabric, which gets its own un-weathered fabric tint below.
+  weatherRange(geo, 0, awnStart, rng, 0.07);
+  weatherRange(geo, awnEnd, I.length, rng, 0.07);
   paintRange(geo, awnStart, awnEnd, awningColor, 0.85); // parasol awnings: warm fabric
   return { kind: "mesh", geometry: geo, color: C.color };
 }

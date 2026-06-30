@@ -60,13 +60,21 @@ function generate(seed: number, p: ParamValues): GeneratedEffect {
     const groundY = size * 0.9; // heat rises off the ground
     const climb = ceiling * size; // travel distance up the flyer grid
 
-    // Soft heat shimmer hugging the ground, fading toward the altitude ceiling.
+    // Soft heat shimmer hugging the ground, fading toward the altitude ceiling. A genuinely
+    // radial gradient — not a clipped rect — so it fades to true alpha 0 on its own before its
+    // shape's edge; clipping a fill that hadn't already faded out left a visible hard ring.
     if (haze > 0) {
-      const hg = ctx.createLinearGradient(0, groundY, 0, groundY - climb);
+      ctx.save();
+      ctx.translate(cx, groundY - climb * 0.5);
+      ctx.scale(size * 0.34, climb * 0.62);
+      const hg = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
       hg.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${haze})`);
       hg.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
       ctx.fillStyle = hg;
-      ctx.fillRect(0, groundY - climb, size, climb);
+      ctx.beginPath();
+      ctx.arc(0, 0, 1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
     ctx.globalCompositeOperation = "lighter";

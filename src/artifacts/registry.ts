@@ -13,14 +13,24 @@ import { pumpStationDef } from "./pumpStation";
 import { observatoryDef } from "./observatory";
 import { incubatorDef } from "./incubator";
 import { skyVillaDef } from "./skyVilla";
+import { broadcastTowerDef } from "./broadcastTower";
+import { aaTurretDef } from "./aaTurret";
+import { radarDishDef } from "./radarDish";
+import { radarDomeDef } from "./radarDome";
+import { radarArrayDef } from "./radarArray";
 import { fighterDef } from "./fighter";
 import { attackDef } from "./attack";
 import { scoutDef } from "./scout";
 import { lightCruiserDef } from "./lightCruiser";
 import { cruiserDef } from "./cruiser";
+import { missileDef } from "./missile";
+import { bombDef } from "./bomb";
+import { torpedoDef } from "./torpedo";
 import { dustStormDef } from "./duststorm";
 import { heatHazeDef } from "./heathaze";
 import { radiumStormDef } from "./radiumstorm";
+import { smokeDef } from "./smoke";
+import { gasCloudDef } from "./gascloud";
 
 export const ARTIFACTS: ArtifactDef[] = [
   hillDef,
@@ -37,14 +47,24 @@ export const ARTIFACTS: ArtifactDef[] = [
   observatoryDef,
   incubatorDef,
   skyVillaDef,
+  broadcastTowerDef,
+  aaTurretDef,
+  radarDishDef,
+  radarDomeDef,
+  radarArrayDef,
   fighterDef,
   attackDef,
   scoutDef,
   lightCruiserDef,
   cruiserDef,
+  missileDef,
+  bombDef,
+  torpedoDef,
   dustStormDef,
   heatHazeDef,
   radiumStormDef,
+  smokeDef,
+  gasCloudDef,
 ];
 
 export interface SubcategoryDef {
@@ -68,6 +88,7 @@ export const CATEGORIES: CategoryDef[] = [
   { id: "terrain", label: "Terrain" },
   { id: "buildings", label: "Buildings" },
   { id: "ships", label: "Ships" },
+  { id: "ordnance", label: "Ordnance" },
   { id: "effects", label: "Effects" },
 ];
 

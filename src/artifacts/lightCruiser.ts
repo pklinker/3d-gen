@@ -1,8 +1,8 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
-  box, dome, tube, frustum, outTri, outQuad, paintRange, buildGeometry,
+  box, dome, tube, frustum, outTri, outQuad, paintRange, deckClutter, buildGeometry,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.lightCruiser;
@@ -64,7 +64,7 @@ function ringAt(P: number[], t: number): { idx: number[]; cy: number; z: number 
  * superstructure cabin amidships, a forward gun turret (twin-barrelled) sitting on the deck
  * just in front of the cabin, and two rear pusher engines on stern outriggers.
  */
-function generate(_seed: number, p: ParamValues): GeneratedMesh {
+function generate(seed: number, p: ParamValues): GeneratedMesh {
   const cabinSize  = p.cabin      as number;
   const prowLength = p.prowLength as number;
   const blades     = Math.max(0, Math.round(p.blades as number));
@@ -72,6 +72,11 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   const hullColor  = p.hullColor  as string;
   const cabinColor = p.cabinColor as string;
   const flagColor  = p.flagColor  as string;
+
+  // Seed drives small variations: bow-deck clutter, mast lean, pennant cut, weathering.
+  const rng = makeRng(seed);
+  const jit = (amt: number) => (rng() - 0.5) * 2 * amt;
+  const halfWAt = (z: number) => station(Math.min(1, Math.max(0, (z + HALF) / (2 * HALF)))).w;
 
   const P: number[] = [];
   const I: number[] = [];
@@ -165,22 +170,37 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   }
   const turretEnd = I.length;
 
-  // ── Mast + pennant ───────────────────────────────────────────────────────────
+  // ── Mast + pennant. Seed jitters masthead height and a slight fore/aft lean. ──
   const mastStart = I.length;
   const mastSt  = station(0.36);
-  const mastTopY = 0.82;
-  tube(P, I, [0, mastSt.deckY, mastSt.z], [0, mastTopY, mastSt.z], 0.016, 5, false, true);
+  const mastTopY = 0.82 + jit(0.06);
+  const mastTopZ = mastSt.z + jit(0.05);
+  tube(P, I, [0, mastSt.deckY, mastSt.z], [0, mastTopY, mastTopZ], 0.016, 5, false, true);
   // Cross yard.
-  tube(P, I, [-0.10, mastTopY - 0.12, mastSt.z], [0.10, mastTopY - 0.12, mastSt.z], 0.010, 4, true, true);
+  tube(P, I, [-0.10, mastTopY - 0.12, mastTopZ], [0.10, mastTopY - 0.12, mastTopZ], 0.010, 4, true, true);
   const mastEnd = I.length;
 
+  // Pennant: seed varies length and droop, and cuts a swallowtail notch about half the time.
   const flagStart = I.length;
   {
-    const fy = mastTopY - 0.05, fz = mastSt.z;
+    const fy = mastTopY - 0.05, fz = mastTopZ;
+    const len = 0.18 + rng() * 0.12;
+    const droop = jit(0.05);
     const v = (x: number, y: number, z: number) => { P.push(x, y, z); return P.length / 3 - 1; };
-    const a = v(0.006, fy + 0.06, fz), b = v(0.006, fy - 0.06, fz), c = v(0.006, fy - 0.006, fz - 0.22);
-    outTri(P, I, a, b, c,  0.4, fy, fz);
-    outTri(P, I, a, b, c, -0.4, fy, fz);
+    const a = v(0.006, fy + 0.06, fz), b = v(0.006, fy - 0.06, fz);
+    if (rng() < 0.5) {
+      const tTop = v(0.006, fy + 0.035, fz - len);
+      const tBot = v(0.006, fy - 0.05 + droop, fz - len);
+      const notch = v(0.006, fy - 0.006 + droop, fz - len * 0.6);
+      outTri(P, I, a, notch, tTop,  0.4, fy, fz);
+      outTri(P, I, b, tBot, notch,  0.4, fy, fz);
+      outTri(P, I, a, tTop, notch, -0.4, fy, fz);
+      outTri(P, I, b, notch, tBot, -0.4, fy, fz);
+    } else {
+      const c = v(0.006, fy - 0.006 + droop, fz - len);
+      outTri(P, I, a, b, c,  0.4, fy, fz);
+      outTri(P, I, a, b, c, -0.4, fy, fz);
+    }
   }
   const flagEnd = I.length;
 
@@ -206,14 +226,21 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   }
   const metalEnd = I.length;
 
+  // Seeded deck clutter on the clear bow deck, forward of the gun turret.
+  const clutterStart = I.length;
+  deckClutter(P, I, rng, station(0.82).z, station(0.94).z, deckAt, halfWAt, 3);
+  const clutterEnd = I.length;
+
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(hullColor, 0.55), shade(hullColor, 1.15));
+  weatherRange(geo, 0, brassStart, rng, 0.1); // seeded per-plank weathering on the hull
   paintRange(geo, brassStart,  brassEnd,  "#B8893C", 0.90); // prow + outrigger pylons: brass
   paintRange(geo, cabinStart,  cabinEnd,  cabinColor, 0.95); // superstructure
   paintRange(geo, turretStart, turretEnd, "#8A8F96", 0.90); // gun turret: steel
   paintRange(geo, mastStart,   mastEnd,   "#7E8890", 0.85); // mast: pale metal
   paintRange(geo, flagStart,   flagEnd,   flagColor, 0.95); // pennant cloth
   paintRange(geo, metalStart,  metalEnd,  "#8A8F96", 0.90); // nacelles + propellers: steel
+  paintRange(geo, clutterStart, clutterEnd, "#7A5A34", 0.95); // deck cargo: crates + barrels
   return { kind: "mesh", geometry: geo, color: hullColor };
 }
 

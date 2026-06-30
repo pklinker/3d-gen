@@ -1,6 +1,6 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
   outQuad, tube, dome, frustum, paintRange, buildGeometry,
 } from "../generation/primitives";
@@ -77,7 +77,8 @@ function tunnelBlock(
  * out of the sides and down into the hex (thickness from the pipe gauge); small glass
  * observation orbs perch on the roof. Weathered canal stone with bright glass and metal pipes.
  */
-function generate(_seed: number, p: ParamValues): GeneratedMesh {
+function generate(seed: number, p: ParamValues): GeneratedMesh {
+  const rng = makeRng(seed);
   const archR = (p.arch as number) / 2;
   const gauge = p.pipe as number;
   const flute = Math.max(0, Math.round(p.flute as number));
@@ -122,8 +123,9 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
 
   // Glass observation orbs on the roof corners.
   const orbStart = I.length;
+  const orbPhase = rng() * Math.PI * 2;
   for (let i = 0; i < orbCount; i++) {
-    const ang = (i / Math.max(1, orbCount)) * Math.PI * 2 + 0.6;
+    const ang = (i / Math.max(1, orbCount)) * Math.PI * 2 + orbPhase;
     const ox = Math.cos(ang) * domeR * 1.05, oz = Math.sin(ang) * domeR * 1.05;
     dome(P, I, ox, oz, topY + 0.02, 0.08, 4, 8);
   }
@@ -131,8 +133,10 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
 
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(C.color, 0.6), shade(C.color, 1.12));
+  weatherRange(geo, 0, ribStart, rng, 0.09); // seeded per-facet weathering on the canal stone
   paintRange(geo, ribStart, ribEnd, "#7E8890", 0.85); // fluting + finial: metal
   paintRange(geo, pipeStart, pipeEnd, "#6E7B73", 0.9); // conduits: patina metal
+  weatherRange(geo, pipeStart, pipeEnd, rng, 0.1); // patina blotching on the conduits
   paintRange(geo, orbStart, orbEnd, "#7FC8E0", 0.8); // glass orbs
   return { kind: "mesh", geometry: geo, color: C.color };
 }

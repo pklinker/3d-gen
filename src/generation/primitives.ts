@@ -259,6 +259,40 @@ export function paintRange(
   col.needsUpdate = true;
 }
 
+/**
+ * Scatter a few seeded deck props (crates and barrels) along the keel centerline between
+ * world-Z `zAft` and `zFwd`, seated on the deck via the `deckY` callback and kept inside the
+ * hull by `halfW`. Triangle soup is appended to P/I; the caller brackets the call with
+ * `I.length` to paint the range. Pass a clear stretch of deck so props don't pierce the cabin
+ * or turrets.
+ */
+export function deckClutter(
+  P: number[], I: number[],
+  rng: () => number,
+  zAft: number, zFwd: number,
+  deckY: (z: number) => number,
+  halfW: (z: number) => number,
+  maxItems = 3,
+): void {
+  const n = 1 + Math.floor(rng() * maxItems); // 1 … maxItems
+  const span = zFwd - zAft;
+  for (let i = 0; i < n; i++) {
+    // Even slots along the band, nudged so a fixed count still varies by seed.
+    const z = zAft + ((i + 0.5) / n) * span + (rng() - 0.5) * (span / n) * 0.4;
+    const baseY = deckY(z);
+    const maxX = Math.max(0.015, halfW(z) * 0.5);
+    const cx = (rng() - 0.5) * 2 * maxX;
+    if (rng() < 0.5) {
+      const s = 0.035 + rng() * 0.03;        // crate: a small cube
+      box(P, I, cx - s, cx + s, baseY, baseY + s * 1.6, z - s, z + s);
+    } else {
+      const r = 0.028 + rng() * 0.018;       // barrel: a short upright cylinder
+      const h = 0.07 + rng() * 0.04;
+      tube(P, I, [cx, baseY, z], [cx, baseY + h, z], r, 6, true, true);
+    }
+  }
+}
+
 /** Assemble a faceted BufferGeometry from accumulated positions/indices. */
 export function buildGeometry(P: number[], I: number[]): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry();

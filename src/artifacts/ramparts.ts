@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { makeRng, facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { makeRng, facet, applyVerticalGradient, shade, weatherRange } from "../generation/proceduralEngine";
 
 const C = MESH_CONTRACTS.ramparts;
 const HALF = C.footprint / 2;
@@ -198,6 +198,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   geo.setIndex(I);
   const faceted = facet(geo);
   applyVerticalGradient(faceted, shade(baseColor, 0.62), shade(baseColor, 1.08));
+  weatherRange(faceted, 0, I.length, rng, 0.1); // seeded per-block sun-bleaching, like tower.ts's masonry
   return { kind: "mesh", geometry: faceted, color: baseColor };
 }
 

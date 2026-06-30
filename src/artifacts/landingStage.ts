@@ -1,6 +1,6 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { makeRng, facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { makeRng, facet, applyVerticalGradient, shade, weatherRange } from "../generation/proceduralEngine";
 import {
   box, tube, frustum, outTri, outQuad, paintRange, buildGeometry,
 } from "../generation/primitives";
@@ -130,8 +130,10 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
 
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(C.color, 0.62), shade(C.color, 1.08));
+  weatherRange(geo, 0, metalStart, rng, 0.09); // seeded per-facet weathering on the stone tiers
   paintRange(geo, metalStart, metalEnd, "#8E97A2", 0.85); // platform + posts: pale steel
   paintRange(geo, steelStart, steelEnd, "#6F757C", 0.9); // gantry: darker iron
+  weatherRange(geo, metalStart, steelEnd, rng, 0.07); // grime/scuffing on the metalwork
   return { kind: "mesh", geometry: geo, color: C.color };
 }
 

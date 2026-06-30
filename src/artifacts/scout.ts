@@ -1,8 +1,8 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
-  box, tube, frustum, outTri, outQuad, paintRange, buildGeometry,
+  box, tube, frustum, outTri, outQuad, paintRange, deckClutter, buildGeometry,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.scout;
@@ -52,7 +52,7 @@ function ringAt(P: number[], t: number): { idx: number[]; cy: number; z: number 
  * a brass cockpit cabin — but propelled by two rear pusher engines slung on short stern
  * outriggers, each with its own propeller, plus a short mast flying a pennant.
  */
-function generate(_seed: number, p: ParamValues): GeneratedMesh {
+function generate(seed: number, p: ParamValues): GeneratedMesh {
   const cabinSize = p.cabin as number;
   const prowLength = p.prowLength as number;
   const blades = Math.max(0, Math.round(p.blades as number));
@@ -60,6 +60,12 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   const hullColor = p.hullColor as string;
   const cabinColor = p.cabinColor as string;
   const flagColor = p.flagColor as string;
+
+  // Seed drives small variations: deck clutter, mast/cabin nudges, pennant cut, weathering.
+  const rng = makeRng(seed);
+  const jit = (amt: number) => (rng() - 0.5) * 2 * amt;
+  const deckYAt = (z: number) => station((z + HALF) / (2 * HALF)).deckY;
+  const halfWAt = (z: number) => station((z + HALF) / (2 * HALF)).w;
 
   const P: number[] = [];
   const I: number[] = [];
@@ -91,16 +97,18 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
     tube(P, I, tip, end, 0.020, 5, true, true);
   }
 
-  // Cockpit cabin amidships: a low box with a slightly narrower raised roof.
+  // Cockpit cabin amidships: a low box with a slightly narrower raised roof. Seed nudges it
+  // fore/aft a touch.
   const cabinStart = I.length;
   {
     const st = station(0.5);
+    const cz = st.z + jit(0.03);
     const cy = st.deckY;
     const halfX = 0.13, halfZ = 0.10 + 0.22 * cabinSize;
     const bodyH = 0.10 + 0.14 * cabinSize;
-    box(P, I, -halfX, halfX, cy, cy + bodyH, st.z - halfZ, st.z + halfZ);
+    box(P, I, -halfX, halfX, cy, cy + bodyH, cz - halfZ, cz + halfZ);
     const rh = halfX * 0.7, rz = halfZ * 0.8;
-    box(P, I, -rh, rh, cy + bodyH, cy + bodyH + 0.05, st.z - rz, st.z + rz); // roof
+    box(P, I, -rh, rh, cy + bodyH, cy + bodyH + 0.05, cz - rz, cz + rz); // roof
   }
   const cabinEnd = I.length;
 
@@ -115,21 +123,37 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   }
   const brassEnd = I.length;
 
-  // --- Mast + pennant amidships, just forward of the engines. ---
+  // --- Mast + pennant amidships, just forward of the engines. Seed jitters masthead height
+  //     and a slight fore/aft lean. ---
   const mastStart = I.length;
   const mast = station(0.36);
-  const mastTopY = 0.6;
-  tube(P, I, [0, mast.deckY, mast.z], [0, mastTopY, mast.z], 0.014, 5, false, true);
+  const mastTopY = 0.6 + jit(0.05);
+  const mastTopZ = mast.z + jit(0.04);
+  tube(P, I, [0, mast.deckY, mast.z], [0, mastTopY, mastTopZ], 0.014, 5, false, true);
   const mastEnd = I.length;
 
+  // Pennant: seed varies length and droop, and cuts a swallowtail notch about half the time.
   const flagStart = I.length;
   {
-    const fy = mastTopY - 0.05, fz = mast.z;
+    const fy = mastTopY - 0.05, fz = mastTopZ;
+    const len = 0.14 + rng() * 0.10;
+    const droop = jit(0.04);
     const a = mkVert(P, 0.005, fy + 0.05, fz);
     const b = mkVert(P, 0.005, fy - 0.05, fz);
-    const c = mkVert(P, 0.005, fy - 0.005, fz - 0.18);
-    outTri(P, I, a, b, c, 0.3, fy, fz);
-    outTri(P, I, a, b, c, -0.3, fy, fz); // double-sided
+    if (rng() < 0.5) {
+      const ny = fy - 0.005 + droop, nz = fz - len * 0.6;
+      const tTop = mkVert(P, 0.005, fy + 0.03, fz - len);
+      const tBot = mkVert(P, 0.005, fy - 0.04 + droop, fz - len);
+      const notch = mkVert(P, 0.005, ny, nz);
+      outTri(P, I, a, notch, tTop, 0.3, fy, fz);
+      outTri(P, I, b, tBot, notch, 0.3, fy, fz);
+      outTri(P, I, a, tTop, notch, -0.3, fy, fz);
+      outTri(P, I, b, notch, tBot, -0.3, fy, fz);
+    } else {
+      const c = mkVert(P, 0.005, fy - 0.005 + droop, fz - len);
+      outTri(P, I, a, b, c, 0.3, fy, fz);
+      outTri(P, I, a, b, c, -0.3, fy, fz); // double-sided
+    }
   }
   const flagEnd = I.length;
 
@@ -154,13 +178,20 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   }
   const metalEnd = I.length;
 
+  // Seeded deck clutter on the clear fore deck (between cabin and bow).
+  const clutterStart = I.length;
+  deckClutter(P, I, rng, station(0.60).z, station(0.80).z, deckYAt, halfWAt, 2);
+  const clutterEnd = I.length;
+
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(hullColor, 0.6), shade(hullColor, 1.12)); // hull timber
+  weatherRange(geo, 0, brassStart, rng, 0.1); // seeded per-plank weathering on the hull
   paintRange(geo, brassStart, brassEnd, "#B8893C", 0.9); // prow spar + outriggers: brass
   paintRange(geo, cabinStart, cabinEnd, cabinColor, 0.95); // cockpit cabin
   paintRange(geo, mastStart, mastEnd, "#7E8890", 0.85); // mast: pale metal
   paintRange(geo, flagStart, flagEnd, flagColor, 0.95); // pennant cloth
   paintRange(geo, metalStart, metalEnd, "#8A8F96", 0.9); // nacelles + propellers: steel
+  paintRange(geo, clutterStart, clutterEnd, "#7A5A34", 0.95); // deck cargo: crates + barrels
   return { kind: "mesh", geometry: geo, color: hullColor };
 }
 

@@ -1,6 +1,6 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
   tube, frustum, dome, paintRange, buildGeometry,
 } from "../generation/primitives";
@@ -37,7 +37,8 @@ function meridianRib(
  * like the bands of a turtle's back, and a stylized ventilation grille of radial fins crowns
  * the top, scaled by its slider. Reinforced sandstone with darker metal ribs and vents.
  */
-function generate(_seed: number, p: ParamValues): GeneratedMesh {
+function generate(seed: number, p: ParamValues): GeneratedMesh {
+  const rng = makeRng(seed);
   const slope = p.slope as number;
   const ribCount = Math.max(0, Math.round(p.ribs as number));
   const vent = p.vent as number;
@@ -58,10 +59,12 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   dome(P, I, 0, 0, springY, topR, 7, SIDES);
   const crownY = springY + topR;
 
-  // Reinforcement ribs arcing over the dome (metal accent).
+  // Reinforcement ribs arcing over the dome (metal accent). Phase offset so the rib pattern
+  // doesn't always start at the same world angle.
   const ribStart = I.length;
+  const ribPhase = ribCount > 0 ? (rng() * Math.PI) / ribCount : 0;
   for (let i = 0; i < ribCount; i++) {
-    meridianRib(P, I, (i / ribCount) * Math.PI, springY, topR + gauge * 0.5, gauge, 7);
+    meridianRib(P, I, ribPhase + (i / ribCount) * Math.PI, springY, topR + gauge * 0.5, gauge, 7);
   }
   // A waist band at the springline ties the ribs to the wall.
   if (ribCount > 0) frustum(P, I, [0, springY - gauge, 0], [0, springY + gauge, 0], topR + gauge, topR + gauge, SIDES, false, false);
@@ -73,8 +76,9 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   const vh = 0.12 * vent;
   frustum(P, I, [0, crownY - 0.02, 0], [0, crownY + vh * 0.5, 0], vr, vr * 0.8, 8, true, true);
   const finN = 8;
+  const finPhase = rng() * (Math.PI * 2) / finN;
   for (let i = 0; i < finN; i++) {
-    const a = (i / finN) * Math.PI * 2;
+    const a = finPhase + (i / finN) * Math.PI * 2;
     const x = Math.cos(a) * vr * 0.78, z = Math.sin(a) * vr * 0.78;
     frustum(P, I, [x, crownY, z], [x, crownY + vh, z], 0.018, 0.01, 4, true, true, a);
   }
@@ -91,6 +95,7 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
 
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(C.color, 0.6), shade(C.color, 1.08));
+  weatherRange(geo, 0, ribStart, rng, 0.08); // seeded per-facet weathering on the sandstone shell
   paintRange(geo, ribStart, ribEnd, "#6F6A5C", 0.85); // ribs: dark iron-stone
   paintRange(geo, ventStart, ventEnd, "#7E8890", 0.85); // vent grille: metal
   return { kind: "mesh", geometry: geo, color: C.color };

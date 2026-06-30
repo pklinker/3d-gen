@@ -7,6 +7,7 @@ import type { ArtifactCategory } from "../types";
 export const CATEGORY_DIRS: Record<ArtifactCategory, string> = {
   buildings: "assets/buildings",
   ships: "assets/ships",
+  ordnance: "assets/ordnance",
   effects: "assets/effects",
   terrain: "assets/terrain",
 };

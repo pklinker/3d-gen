@@ -51,6 +51,36 @@ export function applyVerticalGradient(
   geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 }
 
+/**
+ * Seeded per-facet brightness jitter over a vertex range, for weathered-plank variation.
+ * Runs on a faceted (non-indexed) geometry's existing `color` attribute: each triangle
+ * (3 consecutive vertices) is multiplied by one random factor near 1, so whole facets read
+ * lighter or darker without smearing a gradient across a single facet. `amount` is the
+ * half-range of the multiplier (0.1 ⇒ ±10%).
+ */
+export function weatherRange(
+  geo: THREE.BufferGeometry,
+  start: number, end: number,
+  rng: () => number,
+  amount = 0.1,
+): void {
+  const col = geo.getAttribute("color") as THREE.BufferAttribute | undefined;
+  if (!col) return;
+  const hi = Math.min(end, col.count);
+  for (let i = Math.max(0, start); i < hi; i += 3) {
+    const f = 1 + (rng() - 0.5) * 2 * amount;
+    for (let k = 0; k < 3 && i + k < hi; k++) {
+      col.setXYZ(
+        i + k,
+        Math.min(1, col.getX(i + k) * f),
+        Math.min(1, col.getY(i + k) * f),
+        Math.min(1, col.getZ(i + k) * f),
+      );
+    }
+  }
+  col.needsUpdate = true;
+}
+
 export interface ColorStop {
   /** Normalized height 0 (base) … 1 (peak). */
   t: number;

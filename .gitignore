@@ -4,3 +4,4 @@ dist
 .DS_Store
 *.log
 .3d-gen-settings.json
+.gstack/

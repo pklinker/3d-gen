@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { makeRng, facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { makeRng, facet, applyVerticalGradient, shade, weatherRange } from "../generation/proceduralEngine";
 import { ring, fluting } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.atmosphere;
@@ -171,6 +171,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   geo.setIndex(I);
   const faceted = facet(geo);
   applyVerticalGradient(faceted, shade(baseColor, 0.55), shade(baseColor, 1.15));
+  weatherRange(faceted, 0, I.length, rng, 0.1); // seeded per-facet oxidation blotching
   return { kind: "mesh", geometry: faceted, color: baseColor };
 }
 

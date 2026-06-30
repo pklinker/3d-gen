@@ -1,6 +1,6 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { makeRng, facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { makeRng, facet, applyVerticalGradient, shade, weatherRange } from "../generation/proceduralEngine";
 import {
   outQuad, tube, frustum, ring, paintWhere, buildGeometry,
 } from "../generation/primitives";
@@ -107,6 +107,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
 
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(C.color, 0.6), shade(C.color, 1.15));
+  weatherRange(geo, 0, I.length, rng, 0.06); // light seeded scuffing on the anodized steel
   // Repaint the emitter band a bright radium tint (shaft only — exclude fins/rings).
   paintWhere(geo, (x, y, z) => y >= glowY0 && y <= glowY1 && Math.hypot(x, z) < rAt(glowCenter) * 1.5, glowColor, 0.9);
   return { kind: "mesh", geometry: geo, color: C.color };

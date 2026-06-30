@@ -1,6 +1,6 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
   box, tube, frustum, outTri, outQuad, paintRange, buildGeometry,
 } from "../generation/primitives";
@@ -46,13 +46,17 @@ function hullTopAt(z: number): number {
  * a raised glass canopy, a forward-firing nose cannon, two wing-mounted tractor engines on
  * short stub pylons, and a twin-finned tail.
  */
-function generate(_seed: number, p: ParamValues): GeneratedMesh {
+function generate(seed: number, p: ParamValues): GeneratedMesh {
   const canopySize = p.canopy as number;
   const span = p.span as number;
   const blades = Math.max(0, Math.round(p.blades as number));
   const gunLen = p.gun as number;
   const hullColor = p.hullColor as string;
   const cabinColor = p.cabinColor as string;
+
+  // Seed drives small variations: canopy fore/aft nudge, tail-fin splay, and weathering.
+  const rng = makeRng(seed);
+  const jit = (amt: number) => (rng() - 0.5) * 2 * amt;
 
   const P: number[] = [];
   const I: number[] = [];
@@ -91,10 +95,10 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   const firstRing = rings[0];
   for (let s = 0; s < N; s++) outTri(P, I, tail, firstRing[(s + 1) % N], firstRing[s], 0, CY, -HALF + 0.25);
 
-  // --- Canopy: a raised glass bubble forward of midships. ---
+  // --- Canopy: a raised glass bubble forward of midships. Seed nudges it fore/aft. ---
   const glassStart = I.length;
   {
-    const cz = 0.05;
+    const cz = 0.05 + jit(0.04);
     const hx = 0.07, hz = 0.09 + 0.14 * canopySize, h = 0.07 + 0.06 * canopySize;
     // Seat the canopy on the local hull top at its forward (lowest) edge, embedded slightly
     // so it emerges from the deck rather than hovering above the tapered hull.
@@ -153,9 +157,10 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   {
     const tz = -HALF * 0.78;
     const top = hullTopAt(tz) - 0.02; // seat fins on the tapered tail, embedded slightly
+    const splay = 0.14 + jit(0.035), finH = 0.2 + jit(0.03); // seed varies fin splay + height
     for (const sgn of [-1, 1]) {
       const root: [number, number, number] = [sgn * 0.03, top, tz];
-      const tipP: [number, number, number] = [sgn * 0.14, top + 0.2, tz - 0.06];
+      const tipP: [number, number, number] = [sgn * splay, top + finH, tz - 0.06];
       frustum(P, I, root, tipP, 0.03, 0.012, 4, true, true);
     }
     // Horizontal tailplane.
@@ -165,6 +170,7 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
 
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(hullColor, 0.6), shade(hullColor, 1.12)); // fuselage timber
+  weatherRange(geo, 0, glassStart, rng, 0.1); // seeded per-plank weathering on the fuselage
   paintRange(geo, glassStart, glassEnd, cabinColor, 0.9); // canopy (cabin)
   paintRange(geo, gunStart, gunEnd, "#8A8F96", 0.9); // cannon: steel
   paintRange(geo, engineStart, engineEnd, "#B8893C", 0.9); // pylons + nacelles: brass

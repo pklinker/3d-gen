@@ -3,7 +3,7 @@ import type { ArtifactType, ContractKey, OutputKind } from "./contract/constants
 export type { ArtifactType, ContractKey, OutputKind };
 
 /** Top-level grouping shown as category tabs in the editor. */
-export type ArtifactCategory = "terrain" | "buildings" | "ships" | "effects";
+export type ArtifactCategory = "terrain" | "buildings" | "ships" | "ordnance" | "effects";
 
 /** A single tunable parameter exposed in the param panel. */
 export interface ParamSpec {

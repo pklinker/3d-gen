@@ -17,13 +17,23 @@ export type ArtifactType =
   | "observatory"
   | "incubator"
   | "skyVilla"
+  | "broadcastTower"
+  | "aaTurret"
+  | "radarDish"
+  | "radarDome"
+  | "radarArray"
   | "fighter"
   | "attack"
   | "scout"
   | "lightCruiser"
   | "cruiser"
+  | "missile"
+  | "bomb"
+  | "torpedo"
   | "heathaze"
-  | "radiumstorm";
+  | "radiumstorm"
+  | "smoke"
+  | "gascloud";
 export type OutputKind = "mesh" | "effect";
 
 /** Which mesh contract a mesh artifact is held to. Several artifact types can share one
@@ -43,11 +53,19 @@ export type ContractKey =
   | "observatory"
   | "incubator"
   | "skyVilla"
+  | "broadcastTower"
+  | "aaTurret"
+  | "radarDish"
+  | "radarDome"
+  | "radarArray"
   | "fighter"
   | "attack"
   | "scout"
   | "lightCruiser"
-  | "cruiser";
+  | "cruiser"
+  | "missile"
+  | "bomb"
+  | "torpedo";
 
 export interface MeshContract {
   /** Target footprint in hex-circumradius units (X and Z). */
@@ -216,6 +234,62 @@ export const MESH_CONTRACTS: Record<ContractKey, MeshContract> = {
     metalness: 0.1,
     roughness: 0.7,
   },
+  // Broadcast Tower: a retro-futuristic art-deco radio tower — a stepped ziggurat base
+  // carrying a fluted shaft to a slender antenna mast with crossbar arms and a tip beacon.
+  // Tall, slender hazard.
+  broadcastTower: {
+    footprint: 1.0,
+    height: 2.0,
+    sizeTolerance: 0.3,
+    color: "#A3ADB5", // pale anodized aluminum/steel
+    triBudget: 6500,
+    metalness: 0.4,
+    roughness: 0.5,
+  },
+  // AA Turret: an enclosed armored gun housing on a squat plinth, blending a round cupola
+  // into an angular boxy casemate with elevated barrels. Squat, wide defensive hazard.
+  aaTurret: {
+    footprint: 1.0,
+    height: 0.65,
+    sizeTolerance: 0.3,
+    color: "#5A5F63", // gunmetal steel
+    triBudget: 5500,
+    metalness: 0.35,
+    roughness: 0.55,
+  },
+  // Radar Dish: the turret-family base topped by a tiltable concave dish on a yoke.
+  radarDish: {
+    footprint: 1.0,
+    height: 0.78,
+    sizeTolerance: 0.3,
+    color: "#6B7176", // equipment-grey steel
+    triBudget: 5000,
+    metalness: 0.35,
+    roughness: 0.5,
+  },
+  // Radar Dome: the turret-family base topped by a faceted geodesic radome on a low collar.
+  // Shorter than the other two — no gimbal/yoke to budget height for — and less metallic,
+  // composite-fiberglass radome material rather than bare steel.
+  radarDome: {
+    footprint: 1.0,
+    height: 0.70,
+    sizeTolerance: 0.3,
+    color: "#9CA3A8", // pale radome composite
+    triBudget: 5000,
+    metalness: 0.1,
+    roughness: 0.7,
+  },
+  // Radar Array: the turret-family base topped by a tiltable flat panel antenna with a grid
+  // of dipole elements.
+  radarArray: {
+    footprint: 1.0,
+    height: 0.76,
+    sizeTolerance: 0.3,
+    color: "#6B7176", // equipment-grey steel
+    triBudget: 5500,
+    metalness: 0.35,
+    roughness: 0.5,
+  },
   // One-man Flier (Fighter): a slender wooden airboat hull with a raked bowsprit, a small
   // brass cockpit cabin, a stern mast + pennant, and a radial pusher propeller flanked by
   // tail vanes. Long along Z (the keel axis); height is the masthead. A flying craft, so
@@ -274,6 +348,40 @@ export const MESH_CONTRACTS: Record<ContractKey, MeshContract> = {
     triBudget: 6000,
     metalness: 0.2,
     roughness: 0.6,
+  },
+  // Missile: a slender body of revolution — pointed nose, cylindrical body, tapered exhaust
+  // nozzle, swept tail fins. Long along Z (matching the ships' "+Z = bow" convention); much
+  // smaller than a ship hull — ordnance scale, not vessel scale.
+  missile: {
+    footprint: 0.5,
+    height: 0.245,
+    sizeTolerance: 0.35,
+    color: "#6E7259", // olive-grey body
+    triBudget: 2500,
+    metalness: 0.3,
+    roughness: 0.55,
+  },
+  // Bomb: a stubby teardrop body of revolution — blunt rounded nose, fat midsection, blocky
+  // cruciform tail fins. Shorter and fatter than the missile.
+  bomb: {
+    footprint: 0.4,
+    height: 0.25,
+    sizeTolerance: 0.35,
+    color: "#5C6B4A", // olive-drab matte paint
+    triBudget: 2500,
+    metalness: 0.15,
+    roughness: 0.7,
+  },
+  // Torpedo: the longest, slenderest of the three — blunt rounded nose, long cylindrical
+  // body, a tail propeller and small rudder fins.
+  torpedo: {
+    footprint: 0.6,
+    height: 0.16,
+    sizeTolerance: 0.35,
+    color: "#3A3D40", // dark gunmetal
+    triBudget: 2800,
+    metalness: 0.4,
+    roughness: 0.45,
   },
 };
 

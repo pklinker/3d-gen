@@ -1,6 +1,6 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
-import { facet, applyVerticalGradient, shade } from "../generation/proceduralEngine";
+import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
   tube, frustum, ring, dome, paintRange, buildGeometry,
 } from "../generation/primitives";
@@ -21,7 +21,8 @@ const params = [
  * into the sky by the angle slider; circular brass counterweights at its breech balance it and
  * scale with their own slider. Pale stone shaft, brass instrument.
  */
-function generate(_seed: number, p: ParamValues): GeneratedMesh {
+function generate(seed: number, p: ParamValues): GeneratedMesh {
+  const rng = makeRng(seed);
   const seg = p.segHeight as number;
   const angle = ((p.angle as number) * Math.PI) / 180;
   const weight = p.weight as number;
@@ -66,7 +67,7 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   // Counterweight discs at the breech (flat brass rings).
   const wR = 0.1 * weight;
   for (let k = 0; k < 2; k++) {
-    const off = 0.03 + k * 0.05;
+    const off = 0.03 + k * 0.05 + (rng() - 0.5) * 0.012;
     const ca: [number, number, number] = [breech[0] - dir[0] * off, breech[1] - dir[1] * off, 0];
     const cb: [number, number, number] = [breech[0] - dir[0] * (off + 0.025), breech[1] - dir[1] * (off + 0.025), 0];
     frustum(P, I, ca, cb, wR, wR, 12, true, true);
@@ -76,7 +77,9 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
 
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(C.color, 0.62), shade(C.color, 1.1));
+  weatherRange(geo, 0, brassStart, rng, 0.09); // seeded per-facet weathering on the stone shaft
   paintRange(geo, brassStart, brassEnd, "#C9A24B", 0.9); // brass
+  weatherRange(geo, brassStart, brassEnd, rng, 0.07); // tarnish variation on the brass instrument
   return { kind: "mesh", geometry: geo, color: C.color };
 }
 
