@@ -9,11 +9,12 @@ const C = MESH_CONTRACTS.scout;
 
 const params = [
   { key: "cabin", label: "Cabin size", kind: "number", min: 0.2, max: 0.6, step: 0.02, default: 0.4 },
-  { key: "prow", label: "Prow curl", kind: "number", min: 0, max: 1, step: 0.05, default: 0.6 },
+  { key: "prowLength", label: "Prow length", kind: "number", min: 0, max: 1, step: 0.05, default: 0.6 },
   { key: "blades", label: "Propeller blades", kind: "int", min: 0, max: 8, step: 1, default: 4 },
   { key: "engineSpan", label: "Engine span", kind: "number", min: 0.16, max: 0.42, step: 0.02, default: 0.28 },
   { key: "hullColor", label: "Hull color", kind: "color", default: C.color },
   { key: "cabinColor", label: "Cabin color", kind: "color", default: "#B8893C" },
+  { key: "flagColor", label: "Flag color", kind: "color", default: "#5A86C8" },
 ] as const;
 
 // Build axis: +Z = bow (forward), -Z = stern. The conform pass scales the longest
@@ -47,17 +48,18 @@ function ringAt(P: number[], t: number): { idx: number[]; cy: number; z: number 
 }
 
 /**
- * Scout: a fighter-style timber airboat — the same lofted boat hull with a scrolled prow and
+ * Scout: a fighter-style timber airboat — the same lofted boat hull with a raked bowsprit and
  * a brass cockpit cabin — but propelled by two rear pusher engines slung on short stern
  * outriggers, each with its own propeller, plus a short mast flying a pennant.
  */
 function generate(_seed: number, p: ParamValues): GeneratedMesh {
   const cabinSize = p.cabin as number;
-  const prowCurl = p.prow as number;
+  const prowLength = p.prowLength as number;
   const blades = Math.max(0, Math.round(p.blades as number));
   const engineSpan = p.engineSpan as number;
   const hullColor = p.hullColor as string;
   const cabinColor = p.cabinColor as string;
+  const flagColor = p.flagColor as string;
 
   const P: number[] = [];
   const I: number[] = [];
@@ -81,15 +83,12 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   // --- Brass trim and fittings. ---
   const brassStart = I.length;
 
-  // Scrolled prow: a spar sweeping up and forward off the bow, kinked into a curl.
-  {
+  // Prow spar: a plain raked bowsprit jutting up and forward off the bow. Zero length omits it.
+  if (prowLength > 0) {
     const bow = station(1);
     const tip: [number, number, number] = [0, bow.deckY, bow.z];
-    const k = prowCurl;
-    const mid: [number, number, number] = [0, bow.deckY + 0.06 + 0.10 * k, bow.z + 0.08 + 0.06 * k];
-    const end: [number, number, number] = [0, bow.deckY + 0.04 + 0.18 * k, bow.z + 0.02 + 0.02 * k];
-    tube(P, I, tip, mid, 0.022, 5, true, false);
-    tube(P, I, mid, end, 0.018, 5, false, true);
+    const end: [number, number, number] = [0, bow.deckY + 0.20 * prowLength, bow.z + 0.20 * prowLength];
+    tube(P, I, tip, end, 0.020, 5, true, true);
   }
 
   // Cockpit cabin amidships: a low box with a slightly narrower raised roof.
@@ -157,10 +156,10 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
 
   const geo = facet(buildGeometry(P, I));
   applyVerticalGradient(geo, shade(hullColor, 0.6), shade(hullColor, 1.12)); // hull timber
-  paintRange(geo, brassStart, brassEnd, "#B8893C", 0.9); // prow + outriggers: brass
+  paintRange(geo, brassStart, brassEnd, "#B8893C", 0.9); // prow spar + outriggers: brass
   paintRange(geo, cabinStart, cabinEnd, cabinColor, 0.95); // cockpit cabin
   paintRange(geo, mastStart, mastEnd, "#7E8890", 0.85); // mast: pale metal
-  paintRange(geo, flagStart, flagEnd, "#5A86C8", 0.95); // pennant: blue cloth
+  paintRange(geo, flagStart, flagEnd, flagColor, 0.95); // pennant cloth
   paintRange(geo, metalStart, metalEnd, "#8A8F96", 0.9); // nacelles + propellers: steel
   return { kind: "mesh", geometry: geo, color: hullColor };
 }
@@ -181,5 +180,5 @@ export const scoutDef: ArtifactDef = {
   generate,
   fileStem: "scout",
   promptSeed:
-    "low-poly Barsoomian scout flier, wooden airboat hull with a scrolled prow and brass cockpit cabin, twin rear pusher propeller engines on stern outriggers and a short mast with a pennant, retro-futuristic, matte, stylized game asset.",
+    "low-poly Barsoomian scout flier, wooden airboat hull with a raked bowsprit and brass cockpit cabin, twin rear pusher propeller engines on stern outriggers and a short mast with a pennant, retro-futuristic, matte, stylized game asset.",
 };

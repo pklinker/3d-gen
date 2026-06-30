@@ -9,10 +9,12 @@ const C = MESH_CONTRACTS.lightCruiser;
 
 const params = [
   { key: "cabin",      label: "Cabin size",       kind: "number", min: 0.3, max: 0.7, step: 0.02, default: 0.5 },
+  { key: "prowLength", label: "Prow length",      kind: "number", min: 0,   max: 1,  step: 0.05, default: 0.6 },
   { key: "blades",     label: "Propeller blades",  kind: "int",    min: 0,   max: 8,  step: 1,    default: 4 },
   { key: "engineSpan", label: "Engine span",        kind: "number", min: 0.2, max: 0.5, step: 0.02, default: 0.34 },
   { key: "hullColor",  label: "Hull color",         kind: "color",  default: C.color },
   { key: "cabinColor", label: "Cabin color",         kind: "color",  default: "#9A8C70" },
+  { key: "flagColor",  label: "Flag color",           kind: "color",  default: "#5A86C8" },
 ] as const;
 
 // Build axis: +Z = bow (forward), -Z = stern.
@@ -58,16 +60,18 @@ function ringAt(P: number[], t: number): { idx: number[]; cy: number; z: number 
 }
 
 /**
- * Light Cruiser: a broad timber airboat hull with a scrolled bow prow, a two-tier
+ * Light Cruiser: a broad timber airboat hull with a raked bow prow spar, a two-tier
  * superstructure cabin amidships, a forward gun turret (twin-barrelled) sitting on the deck
  * just in front of the cabin, and two rear pusher engines on stern outriggers.
  */
 function generate(_seed: number, p: ParamValues): GeneratedMesh {
   const cabinSize  = p.cabin      as number;
+  const prowLength = p.prowLength as number;
   const blades     = Math.max(0, Math.round(p.blades as number));
   const engineSpan = p.engineSpan as number;
   const hullColor  = p.hullColor  as string;
   const cabinColor = p.cabinColor as string;
+  const flagColor  = p.flagColor  as string;
 
   const P: number[] = [];
   const I: number[] = [];
@@ -91,15 +95,13 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   for (let j = 1; j < N - 1; j++)
     outTri(P, I, sternRing.idx[0], sternRing.idx[j], sternRing.idx[j + 1], 0, sternRing.cy, sternRing.z + 0.2);
 
-  // ── Scrolled bow prow ────────────────────────────────────────────────────────
+  // ── Bow prow spar ────────────────────────────────────────────────────────────
   const brassStart = I.length;
-  {
+  if (prowLength > 0) {
     const bow = station(1);
     const tip: [number, number, number] = [0, bow.deckY, bow.z];
-    const mid: [number, number, number] = [0, bow.deckY + 0.08, bow.z + 0.10];
-    const end: [number, number, number] = [0, bow.deckY + 0.05, bow.z + 0.04];
-    tube(P, I, tip, mid, 0.028, 6, true, false);
-    tube(P, I, mid, end, 0.022, 6, false, true);
+    const end: [number, number, number] = [0, bow.deckY + 0.22 * prowLength, bow.z + 0.22 * prowLength];
+    tube(P, I, tip, end, 0.025, 6, true, true);
   }
 
   // ── Stern outrigger pylons (brass) ───────────────────────────────────────────
@@ -210,7 +212,7 @@ function generate(_seed: number, p: ParamValues): GeneratedMesh {
   paintRange(geo, cabinStart,  cabinEnd,  cabinColor, 0.95); // superstructure
   paintRange(geo, turretStart, turretEnd, "#8A8F96", 0.90); // gun turret: steel
   paintRange(geo, mastStart,   mastEnd,   "#7E8890", 0.85); // mast: pale metal
-  paintRange(geo, flagStart,   flagEnd,   "#5A86C8", 0.95); // pennant: blue cloth
+  paintRange(geo, flagStart,   flagEnd,   flagColor, 0.95); // pennant cloth
   paintRange(geo, metalStart,  metalEnd,  "#8A8F96", 0.90); // nacelles + propellers: steel
   return { kind: "mesh", geometry: geo, color: hullColor };
 }
@@ -225,5 +227,5 @@ export const lightCruiserDef: ArtifactDef = {
   generate,
   fileStem: "light_cruiser",
   promptSeed:
-    "low-poly Barsoomian light cruiser airship, wide timber boat hull with a scrolled bow prow, two-tier superstructure cabin, a forward twin-barrelled gun turret, twin rear pusher engines on stern outriggers, retro-futuristic, matte, stylized game asset.",
+    "low-poly Barsoomian light cruiser airship, wide timber boat hull with a raked bow prow spar, two-tier superstructure cabin, a forward twin-barrelled gun turret, twin rear pusher engines on stern outriggers, retro-futuristic, matte, stylized game asset.",
 };

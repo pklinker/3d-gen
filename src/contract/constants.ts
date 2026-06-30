@@ -216,7 +216,7 @@ export const MESH_CONTRACTS: Record<ContractKey, MeshContract> = {
     metalness: 0.1,
     roughness: 0.7,
   },
-  // One-man Flier (Fighter): a slender wooden airboat hull with a scrolled prow, a small
+  // One-man Flier (Fighter): a slender wooden airboat hull with a raked bowsprit, a small
   // brass cockpit cabin, a stern mast + pennant, and a radial pusher propeller flanked by
   // tail vanes. Long along Z (the keel axis); height is the masthead. A flying craft, so
   // the "base on Y=0" anchor just rests the keel on the ground plane in the editor.
@@ -263,7 +263,7 @@ export const MESH_CONTRACTS: Record<ContractKey, MeshContract> = {
     metalness: 0.2,
     roughness: 0.65,
   },
-  // Scout: a fighter-style timber airboat hull with a scrolled prow and cockpit cabin, but
+  // Scout: a fighter-style timber airboat hull with a raked bowsprit and cockpit cabin, but
   // driven by two rear pusher engines on stern outriggers. Long along Z; height is the mast.
   // A flying craft, so the "base on Y=0" anchor just rests the keel on the ground plane.
   scout: {
