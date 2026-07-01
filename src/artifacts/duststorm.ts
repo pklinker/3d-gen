@@ -53,35 +53,42 @@ function generate(seed: number, p: ParamValues): GeneratedEffect {
     const t = frame / frameCount; // 0..1 loop phase
     ctx.clearRect(0, 0, size, size);
     const cx = size / 2;
-    const cy = size * 0.62; // ground-anchored, storm billows upward
+    const cy = size * 0.92; // ground-anchored, storm billows upward
     const scale = size * 0.5;
 
     // Soft continuous haze column behind the grains, so the storm reads as a body
     // even where particles are sparse. Drifts slightly on the loop phase.
+    // The gradient's radius and center are capped/clamped so its zero-alpha edge
+    // always lands inside the frame — otherwise the frame boundary cuts through
+    // it at non-zero alpha, showing up as a hard rectangular edge.
     if (haze > 0) {
+      const marginX = size * 0.06;
+      const hr = Math.min(radius * 1.3 * scale, size * 0.5 - marginX);
+      const ry = hr * 1.15;
+      const marginY = size * 0.03;
       const drift = Math.sin(t * Math.PI * 2) * 0.04 * scale;
-      const hx = cx + drift;
-      const hy = cy - radius * 0.55 * scale;
-      const hr = radius * 1.05 * scale;
+      const hx = Math.max(hr + marginX, Math.min(size - hr - marginX, cx + drift));
+      const hy = Math.max(ry + marginY, Math.min(size - ry - marginY, cy - radius * 0.9 * scale));
       const hg = ctx.createRadialGradient(hx, hy, hr * 0.1, hx, hy, hr);
       hg.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${haze})`);
       hg.addColorStop(0.6, `rgba(${rgb.r},${rgb.g},${rgb.b},${haze * 0.45})`);
       hg.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
       ctx.fillStyle = hg;
       ctx.beginPath();
-      ctx.ellipse(hx, hy, hr, hr * 1.15, 0, 0, Math.PI * 2);
+      ctx.ellipse(hx, hy, hr, ry, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
     ctx.globalCompositeOperation = "lighter";
+    const pMargin = size * 0.02;
     for (const pt of particles) {
       const ang = pt.ang + t * Math.PI * 2 * pt.spin;
       const r = pt.r;
-      const x = cx + Math.cos(ang) * r * scale;
+      const pr = pt.size * scale;
+      const x = Math.max(pr + pMargin, Math.min(size - pr - pMargin, cx + Math.cos(ang) * r * scale));
       // vertical billow: looped bob using the frame phase
       const bob = Math.sin((t + pt.ySeed) * Math.PI * 2);
-      const y = cy - (pt.ySeed * 0.8 + 0.1) * scale - bob * 0.06 * scale;
-      const pr = pt.size * scale;
+      const y = cy - (pt.ySeed * 1.55 + 0.04) * scale - bob * 0.06 * scale;
       const g = ctx.createRadialGradient(x, y, 0, x, y, pr);
       g.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${pt.alpha})`);
       g.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
