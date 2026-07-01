@@ -99,6 +99,10 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   const sternRing = rings[0];
   for (let j = 1; j < N - 1; j++)
     outTri(P, I, sternRing.idx[0], sternRing.idx[j], sternRing.idx[j + 1], 0, sternRing.cy, sternRing.z + 0.2);
+  // Cap the bow: the last ring is a small but nonzero polygon, so it needs a real cap too.
+  const bowRing = rings[STA];
+  for (let j = 1; j < N - 1; j++)
+    outTri(P, I, bowRing.idx[0], bowRing.idx[j], bowRing.idx[j + 1], 0, bowRing.cy, bowRing.z - 0.2);
 
   // ── Bow prow spar ────────────────────────────────────────────────────────────
   const brassStart = I.length;
@@ -114,7 +118,8 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   const engY  = (engSt.deckY + engSt.keelY) / 2 + 0.02;
   const engZ  = engSt.z;
   for (const sgn of [-1, 1]) {
-    const root: [number, number, number] = [sgn * engSt.w * 0.85, engY, engZ];
+    // Root at 0.42*w matches ringAt's hull surface at cy height (the [w*0.42, cy] ring vertex).
+    const root: [number, number, number] = [sgn * engSt.w * 0.42, engY, engZ];
     const tip:  [number, number, number] = [sgn * engineSpan,      engY, engZ];
     frustum(P, I, root, tip, 0.045, 0.055, 5, true, false);
   }
@@ -226,9 +231,10 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   }
   const metalEnd = I.length;
 
-  // Seeded deck clutter on the clear bow deck, forward of the gun turret.
+  // Seeded deck clutter on the clear stern deck, between the engine mounts and the mast
+  // (the bow deck is off-limits: it's swept by the forward turret's barrels).
   const clutterStart = I.length;
-  deckClutter(P, I, rng, station(0.82).z, station(0.94).z, deckAt, halfWAt, 3);
+  deckClutter(P, I, rng, station(0.22).z, station(0.32).z, deckAt, halfWAt, 3);
   const clutterEnd = I.length;
 
   const geo = facet(buildGeometry(P, I));

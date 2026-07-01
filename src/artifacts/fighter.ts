@@ -82,9 +82,12 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
       outQuad(P, I, a.idx[j], a.idx[jn], b.idx[jn], b.idx[j], 0, refY, refZ);
     }
   }
-  // Cap the stern transom (the bow ring is nearly a point, so it needs no real cap).
+  // Cap the stern transom.
   const s = rings[0];
   for (let j = 1; j < 5; j++) outTri(P, I, s.idx[0], s.idx[j], s.idx[j + 1], 0, s.cy, s.z + 0.2);
+  // Cap the bow: the last ring is a small but nonzero hexagon, so it needs a real cap too.
+  const bCap = rings[STA];
+  for (let j = 1; j < 5; j++) outTri(P, I, bCap.idx[0], bCap.idx[j], bCap.idx[j + 1], 0, bCap.cy, bCap.z - 0.2);
 
   // --- Brass trim and fittings start here. ---
   const brassStart = I.length;
@@ -115,9 +118,9 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   // Fixed stabilizer wings: a swept flat fin off each hull flank, just aft of midships.
   {
     const st = station(0.34);
-    const cy = (st.deckY + st.keelY) / 2 + 0.03;
+    const cy = (st.deckY + st.keelY) / 2 + 0.02; // matches ringAt's midY
     for (const sgn of [-1, 1]) {
-      const root: [number, number, number] = [sgn * st.w, cy, st.z];
+      const root: [number, number, number] = [sgn * 0.85 * st.w, cy, st.z]; // on the hull surface at midY
       const tipP: [number, number, number] = [sgn * (st.w + 0.24), cy - 0.04, st.z - 0.12];
       frustum(P, I, root, tipP, 0.035, 0.012, 4, true, true);
     }

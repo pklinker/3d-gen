@@ -82,9 +82,12 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
       outQuad(P, I, a.idx[j], a.idx[jn], b.idx[jn], b.idx[j], 0, refY, refZ);
     }
   }
-  // Cap the stern transom (the bow ring is nearly a point, so it needs no real cap).
+  // Cap the stern transom.
   const s = rings[0];
   for (let j = 1; j < 5; j++) outTri(P, I, s.idx[0], s.idx[j], s.idx[j + 1], 0, s.cy, s.z + 0.2);
+  // Cap the bow: the last ring is a small but nonzero hexagon, so it needs a real cap too.
+  const bCap = rings[STA];
+  for (let j = 1; j < 5; j++) outTri(P, I, bCap.idx[0], bCap.idx[j], bCap.idx[j + 1], 0, bCap.cy, bCap.z - 0.2);
 
   // --- Brass trim and fittings. ---
   const brassStart = I.length;
@@ -117,7 +120,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   const engY = (engStation.deckY + engStation.keelY) / 2 + 0.02;
   const engZ = engStation.z;
   for (const sgn of [-1, 1]) {
-    const root: [number, number, number] = [sgn * engStation.w, engY, engZ + 0.02];
+    const root: [number, number, number] = [sgn * 0.85 * engStation.w, engY, engZ + 0.02]; // on the hull surface at midY
     const nac: [number, number, number] = [sgn * engineSpan, engY, engZ];
     frustum(P, I, root, nac, 0.04, 0.05, 4, true, false);
   }
