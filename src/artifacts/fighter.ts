@@ -130,7 +130,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
 
   // --- Mast + pennant. Seed jitters the masthead height and a slight fore/aft lean. ---
   const mastStart = I.length;
-  const mast = station(0.12);
+  const mast = station(0.24);
   const mastBaseY = mast.deckY;
   const mastTopY = 0.72 + jit(0.05);
   const mastTopZ = mast.z + jit(0.04);

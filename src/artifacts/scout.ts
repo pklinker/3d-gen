@@ -126,10 +126,10 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   }
   const brassEnd = I.length;
 
-  // --- Mast + pennant amidships, just forward of the engines. Seed jitters masthead height
-  //     and a slight fore/aft lean. ---
+  // --- Mast + pennant, clear of both the cabin and the engine outriggers. Seed jitters
+  //     masthead height and a slight fore/aft lean. ---
   const mastStart = I.length;
-  const mast = station(0.36);
+  const mast = station(0.20);
   const mastTopY = 0.6 + jit(0.05);
   const mastTopZ = mast.z + jit(0.04);
   tube(P, I, [0, mast.deckY, mast.z], [0, mastTopY, mastTopZ], 0.014, 5, false, true);
