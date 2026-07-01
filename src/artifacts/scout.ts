@@ -122,7 +122,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   for (const sgn of [-1, 1]) {
     const root: [number, number, number] = [sgn * 0.85 * engStation.w, engY, engZ + 0.02]; // on the hull surface at midY
     const nac: [number, number, number] = [sgn * engineSpan, engY, engZ];
-    frustum(P, I, root, nac, 0.04, 0.05, 4, true, false);
+    frustum(P, I, root, nac, 0.04, 0.05, 8, true, false);
   }
   const brassEnd = I.length;
 
@@ -166,8 +166,8 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   for (const sgn of [-1, 1]) {
     const ex = sgn * engineSpan;
     const frontZ = engZ + nl * 0.45, backZ = engZ - nl * 0.55;
-    tube(P, I, [ex, engY, frontZ], [ex, engY, backZ], 0.05, 8, true, false);
-    frustum(P, I, [ex, engY, backZ], [ex, engY, backZ - 0.05], 0.05, 0, 8, false, false); // tail fairing
+    tube(P, I, [ex, engY, frontZ], [ex, engY, backZ], 0.05, 12, true, false);
+    frustum(P, I, [ex, engY, backZ], [ex, engY, backZ - 0.05], 0.05, 0, 12, false, false); // tail fairing
     // Pusher propeller in the X-Y disc just aft of the nacelle.
     const discZ = backZ - 0.03;
     for (let i = 0; i < blades; i++) {

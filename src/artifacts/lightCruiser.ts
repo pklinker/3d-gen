@@ -121,7 +121,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
     // Root at 0.42*w matches ringAt's hull surface at cy height (the [w*0.42, cy] ring vertex).
     const root: [number, number, number] = [sgn * engSt.w * 0.42, engY, engZ];
     const tip:  [number, number, number] = [sgn * engineSpan,      engY, engZ];
-    frustum(P, I, root, tip, 0.045, 0.055, 5, true, false);
+    frustum(P, I, root, tip, 0.045, 0.055, 8, true, false);
   }
   const brassEnd = I.length;
 
@@ -216,8 +216,8 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   const frontZ = engZ + nl * 0.45, backZ = engZ - nl * 0.55;
   for (const sgn of [-1, 1]) {
     const ex = sgn * engineSpan;
-    tube(P, I,    [ex, engY, frontZ], [ex, engY, backZ], nr, 8, true, false);
-    frustum(P, I, [ex, engY, backZ],  [ex, engY, backZ - 0.06], nr, 0, 8, false, false);
+    tube(P, I,    [ex, engY, frontZ], [ex, engY, backZ], nr, 12, true, false);
+    frustum(P, I, [ex, engY, backZ],  [ex, engY, backZ - 0.06], nr, 0, 12, false, false);
     // Pusher propeller blades in the X-Y disc just aft of the nacelle.
     const discZ = backZ - 0.035;
     for (let i = 0; i < blades; i++) {

@@ -138,7 +138,7 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   const engZ  = engSt.z;
   for (const sgn of [-1, 1]) {
     // Root at 0.42*w matches ringAt's hull surface at cy height (the [w*0.42, cy] ring vertex).
-    frustum(P, I, [sgn * engSt.w * 0.42, engY, engZ], [sgn * engineSpan, engY, engZ], 0.045, 0.055, 5, true, false);
+    frustum(P, I, [sgn * engSt.w * 0.42, engY, engZ], [sgn * engineSpan, engY, engZ], 0.045, 0.055, 8, true, false);
   }
   const brassEnd = I.length;
 
@@ -201,8 +201,8 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   const frontZ = engZ + nl * 0.45, backZ = engZ - nl * 0.55;
   for (const sgn of [-1, 1]) {
     const ex = sgn * engineSpan;
-    tube(P, I,    [ex, engY, frontZ], [ex, engY, backZ], nr, 8, true, false);
-    frustum(P, I, [ex, engY, backZ],  [ex, engY, backZ - 0.06], nr, 0, 8, false, false);
+    tube(P, I,    [ex, engY, frontZ], [ex, engY, backZ], nr, 12, true, false);
+    frustum(P, I, [ex, engY, backZ],  [ex, engY, backZ - 0.06], nr, 0, 12, false, false);
     const discZ = backZ - 0.035;
     for (let i = 0; i < blades; i++) {
       const ang = (i / Math.max(1, blades)) * Math.PI * 2;

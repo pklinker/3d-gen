@@ -129,10 +129,10 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   for (const sgn of [-1, 1]) {
     const ex = sgn * span;
     // Stub pylon from the fuselage flank out to the nacelle.
-    frustum(P, I, [sgn * fuseSide, ey, ez], [ex, ey, ez], 0.05, nacR * 0.7, 4, true, false);
+    frustum(P, I, [sgn * fuseSide, ey, ez], [ex, ey, ez], 0.05, nacR * 0.7, 8, true, false);
     // Nacelle body + spinner cone facing forward.
-    tube(P, I, [ex, ey, backZ], [ex, ey, frontZ], nacR, 8, true, false);
-    frustum(P, I, [ex, ey, frontZ], [ex, ey, frontZ + 0.06], nacR, 0, 8, false, false);
+    tube(P, I, [ex, ey, backZ], [ex, ey, frontZ], nacR, 12, true, false);
+    frustum(P, I, [ex, ey, frontZ], [ex, ey, frontZ + 0.06], nacR, 0, 12, false, false);
   }
   const engineEnd = I.length;
 
