@@ -90,11 +90,16 @@ function generate(seed: number, p: ParamValues): GeneratedEffect {
     const anchorY = size * 0.3; // underside of the cloud band
 
     // Radioactive cloud body: overlapping soft puffs. Density sets opacity/solidness.
+    // Cap the radius and clamp each puff center so the billow never spills past the
+    // frame edges (which would otherwise show as a hard rectangular cutoff).
+    const margin = size * 0.03;
     for (const pf of puffs) {
       const drift = Math.sin(t * Math.PI * 2 + pf.x * 3) * 0.01 * size;
-      const x = cx + pf.x * size * 0.5 + drift;
-      const y = pf.y * size;
-      const r = pf.r * size;
+      const r = Math.min(pf.r * size, size * 0.24);
+      const lo = r + margin;
+      const hi = size - r - margin;
+      const x = Math.max(lo, Math.min(hi, cx + pf.x * size * 0.5 + drift));
+      const y = Math.max(lo, Math.min(hi, pf.y * size));
       const a = pf.a * density;
       const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
       g.addColorStop(0, `rgba(${cloud.r},${cloud.g},${cloud.b},${a})`);

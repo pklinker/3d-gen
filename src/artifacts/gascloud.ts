@@ -60,7 +60,8 @@ function generate(seed: number, p: ParamValues): GeneratedEffect {
     const sway = Math.sin(t * Math.PI * 2) * drift * 0.08 * size;
 
     if (haze > 0) {
-      const hr = size * 0.42 * billowScale;
+      // Cap the haze radius so the soft base ellipse never reaches the frame edge.
+      const hr = size * Math.min(0.42 * billowScale, 0.44);
       const hg = ctx.createRadialGradient(cx + sway, cy, hr * 0.1, cx + sway, cy, hr);
       hg.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${haze})`);
       hg.addColorStop(0.6, `rgba(${rgb.r},${rgb.g},${rgb.b},${haze * 0.45})`);
@@ -73,14 +74,19 @@ function generate(seed: number, p: ParamValues): GeneratedEffect {
 
     // Ordinary alpha blending for the cloud body (matching radiumStorm's puff cloud) — additive
     // "lighter" blending blows overlapping puffs out to white well before density looks toxic.
+    // Cap the (pulsed) radius and clamp each puff center so the billow never spills past the
+    // frame edges, which would otherwise show as a hard rectangular cutoff.
+    const margin = size * 0.03;
     for (const pf of puffs) {
       // breathe wraps to the same value at t=0 and t=1 regardless of freq, so the
       // per-puff pulse stays seamless across the sprite-sheet loop boundary.
       const breathe = (pf.phase + t) % 1;
       const pulseAmt = 1 + Math.sin(breathe * Math.PI * 2 * pf.freq + pf.jitter) * pulse * 0.22;
-      const x = cx + sway + pf.x * size * 0.42;
-      const y = cy + pf.y * size * 0.42;
-      const r = pf.r * size * pulseAmt;
+      const r = Math.min(pf.r * size * pulseAmt, size * 0.26);
+      const lo = r + margin;
+      const hi = size - r - margin;
+      const x = Math.max(lo, Math.min(hi, cx + sway + pf.x * size * 0.42));
+      const y = Math.max(lo, Math.min(hi, cy + pf.y * size * 0.42));
       const a = pf.a * (0.7 + 0.3 * pulseAmt);
       const g = ctx.createRadialGradient(x, y, r * 0.15, x, y, r);
       g.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${a})`);
