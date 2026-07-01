@@ -27,6 +27,7 @@ export type ArtifactType =
   | "scout"
   | "lightCruiser"
   | "cruiser"
+  | "battleship"
   | "missile"
   | "bomb"
   | "torpedo"
@@ -63,6 +64,7 @@ export type ContractKey =
   | "scout"
   | "lightCruiser"
   | "cruiser"
+  | "battleship"
   | "missile"
   | "bomb"
   | "torpedo";
@@ -324,6 +326,18 @@ export const MESH_CONTRACTS: Record<ContractKey, MeshContract> = {
     color: "#4A3010", // darker oiled timber to distinguish from Light Cruiser
     triBudget: 8000,
     metalness: 0.2,
+    roughness: 0.65,
+  },
+  // Battleship: the Cruiser hull up-armed with single-barrelled wing turrets sponsoned off
+  // each broadside, and a third centerline pusher engine added astern behind the twin
+  // outrigger engines — bigger, heavier and more heavily armed than the Cruiser.
+  battleship: {
+    footprint: 1.9,
+    height: 0.9,
+    sizeTolerance: 0.45,
+    color: "#3E2A12", // darker oiled timber to distinguish from Cruiser
+    triBudget: 9500,
+    metalness: 0.22,
     roughness: 0.65,
   },
   // Light Cruiser: a wide timber airboat hull with a two-tier superstructure cabin, a

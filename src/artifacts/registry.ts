@@ -23,6 +23,7 @@ import { attackDef } from "./attack";
 import { scoutDef } from "./scout";
 import { lightCruiserDef } from "./lightCruiser";
 import { cruiserDef } from "./cruiser";
+import { battleshipDef } from "./battleship";
 import { missileDef } from "./missile";
 import { bombDef } from "./bomb";
 import { torpedoDef } from "./torpedo";
@@ -57,6 +58,7 @@ export const ARTIFACTS: ArtifactDef[] = [
   scoutDef,
   lightCruiserDef,
   cruiserDef,
+  battleshipDef,
   missileDef,
   bombDef,
   torpedoDef,
