@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { artifactsInCategory } from "../artifacts/registry";
-import { MESH_CONTRACTS } from "../contract/constants";
+import { deriveKindDocFromArtifact } from "./autoKind";
+import { hexToRgba, rgbaToHex } from "./color";
 import type { ArtifactType } from "../types";
 import type { TerrainKindDoc } from "./types";
 
@@ -61,24 +62,27 @@ export default function KindForm({ onSave, onCancel }: KindFormProps) {
     [generator],
   );
 
+  // Reuses autoKind's derivation (the same heuristic the full-registry
+  // palette is built from, MAP_MODDING.md §0.13) so picking a generator here
+  // seeds every field — including the artifact's own color — with the exact
+  // starting point a modder would get from the auto-populated palette; the
+  // fields stay individually editable from there for WYSIWYG tuning.
   function pickGenerator(type: ArtifactType | "") {
     setGenerator(type);
-    const mesh = MESH_OPTIONS.find((a) => a.type === type);
-    if (mesh) {
-      const C = MESH_CONTRACTS[mesh.contract ?? "hill"];
-      setHeight(C.height);
-      setFootprint(Math.min(1, C.footprint / 2));
-      setFrame(C.height * 1.3 + C.footprint * 0.5);
-      setSpan(C.footprint * 1.05);
-      setLookY(C.height * 0.4);
-      setAnchor(0.55);
-      return;
-    }
-    const sprite = SPRITE_OPTIONS.find((a) => a.type === type);
-    if (sprite) {
-      setSpritePrefix(sprite.fileStem);
-      setSpriteSpan(1.8);
-      setSpriteAnchor(0.62);
+    if (!type) return;
+    const doc = deriveKindDocFromArtifact(type);
+    setColor(rgbaToHex(doc.color));
+    setHeight(doc.height);
+    if (doc.footprint !== undefined) setFootprint(doc.footprint);
+    if (doc.model) {
+      setFrame(doc.model.frame);
+      setSpan(doc.model.span);
+      setLookY(doc.model.lookY);
+      setAnchor(doc.model.anchor);
+    } else if (doc.sprite) {
+      setSpritePrefix(doc.sprite.prefix);
+      setSpriteSpan(doc.sprite.span);
+      setSpriteAnchor(doc.sprite.anchor);
     }
   }
 
@@ -237,14 +241,4 @@ export default function KindForm({ onSave, onCancel }: KindFormProps) {
       </div>
     </div>
   );
-}
-
-function hexToRgba(hex: string): [number, number, number, number] {
-  const h = hex.replace("#", "");
-  return [
-    parseInt(h.slice(0, 2), 16) / 255,
-    parseInt(h.slice(2, 4), 16) / 255,
-    parseInt(h.slice(4, 6), 16) / 255,
-    1,
-  ];
 }

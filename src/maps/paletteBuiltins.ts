@@ -1,15 +1,32 @@
-// Built-in terrain-kind palette: the three core kinds flyers ships
-// (data/terrain.json), so the Maps painter has something to paint with even
-// when the game dir is unreachable (fully optional/offline-capable, matching
-// the rest of this editor's "works with no game connection" philosophy).
-// When the game IS reachable, useCatalogData layers the live data/terrain.json
-// over these by id (upsertById) — a live core kind (identical data) simply
-// replaces its built-in twin; any mod-added kind appends.
+// Built-in terrain-kind palette. Two layers:
+//
+//   1. GOLDEN_KIND_DOCS — the three core kinds flyers actually ships
+//      (data/terrain.json), pinned to match its exact hand-tuned rules/render
+//      values (verified against the golden fixture in
+//      __fixtures__/golden.ts — see the T7 parity tests).
+//   2. AUTO_REGISTRY_KIND_DOCS — every OTHER terrain/buildings/effects
+//      artifact in the registry, derived via autoKind.ts so the painter has
+//      the full catalog to paint with immediately rather than only the three
+//      the game happens to ship today. Rule defaults here are coarse
+//      (mesh -> blocks LOS, effect -> doesn't) since there's no way to guess
+//      "does a rift block a shot?" from geometry alone; a modder tunes these
+//      per kind before shipping (the same rule fields KindForm always left
+//      editable).
+//
+// The Maps painter has something to paint with even when the game dir is
+// unreachable (fully optional/offline-capable, matching this editor's
+// existing "works with no game connection" philosophy). When the game IS
+// reachable, useCatalogData layers the live data/terrain.json over ALL of
+// this by id (upsertById) — a live kind (identical or retuned data) replaces
+// its built-in twin; any further mod-added kind appends.
 
+import { artifactsInCategory } from "../artifacts/registry";
+import { deriveKindDocFromArtifact } from "./autoKind";
+import { upsertById } from "./merge";
 import type { ArtifactType } from "../types";
 import type { TerrainKindDoc } from "./types";
 
-export const BUILTIN_KIND_DOCS: TerrainKindDoc[] = [
+export const GOLDEN_KIND_DOCS: TerrainKindDoc[] = [
   {
     id: "hill",
     displayName: "Hill",
@@ -43,13 +60,32 @@ export const BUILTIN_KIND_DOCS: TerrainKindDoc[] = [
   },
 ];
 
-/** Which registry generator previews a built-in kind's mesh in the painter.
- *  A kind created via KindForm carries its own binding directly (the user
- *  picks a generator explicitly) — this table only covers the shipped three,
- *  whose kind-id and ArtifactType happen to spell differently
- *  ("dust_storm" vs "duststorm"). */
+/** Which registry generator previews a golden kind's mesh in the painter — the
+ *  golden docs above don't set generatorType (they predate that field, and
+ *  their id/ArtifactType spelling differs for dust_storm/duststorm), so
+ *  kindMesh.ts falls back to this table when generatorType is unset. */
 export const BUILTIN_KIND_ARTIFACT: Record<string, ArtifactType> = {
   hill: "hill",
   tower: "tower",
   dust_storm: "duststorm",
 };
+
+// Every terrain/buildings/effects artifact NOT already covered by a golden
+// kind above (ships/ordnance are excluded — those aren't map terrain, they're
+// player-placed vessels and fired weapons; see PLACEMENT.md).
+const GOLDEN_ARTIFACT_TYPES = new Set<ArtifactType>(["hill", "tower", "duststorm"]);
+const AUTO_REGISTRY_KIND_DOCS: TerrainKindDoc[] = [
+  ...artifactsInCategory("terrain"),
+  ...artifactsInCategory("buildings"),
+  ...artifactsInCategory("effects"),
+]
+  .filter((a) => !GOLDEN_ARTIFACT_TYPES.has(a.type))
+  .map((a) => deriveKindDocFromArtifact(a.type));
+
+/** The full out-of-the-box palette: golden kinds win their slot (last-writer-
+ *  wins by id, same rule the game's own catalog merge uses), the rest of the
+ *  registry appended after. */
+export const BUILTIN_KIND_DOCS: TerrainKindDoc[] = AUTO_REGISTRY_KIND_DOCS.reduce(
+  (acc, doc) => upsertById(acc, doc),
+  GOLDEN_KIND_DOCS,
+);
