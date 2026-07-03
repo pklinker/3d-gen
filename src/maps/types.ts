@@ -4,7 +4,7 @@
 // between ShipDef-style Resources and their to_dict()/from_dict() wire format:
 //
 //   *Doc    — editor-internal representation (camelCase, TS-idiomatic). This is
-//             what a future Maps painter (T8) would hold as state.
+//             what the Maps painter (MapEditor.tsx, T8) holds as state.
 //   *Entry  — the exact JSON shape flyers' MapDef.from_dict() / TerrainKindDef
 //             .from_dict() parse (snake_case, matching data/maps.json /
 //             data/terrain.json verbatim). Only *Entry ever crosses the wire.
@@ -12,6 +12,8 @@
 // Keeping the boundary explicit (rather than authoring camelCase strings that
 // happen to serialize) is what makes serialize.ts a single, testable seam — if
 // the flyers schema changes, exactly one function needs to change here too.
+
+import type { ArtifactType } from "../types";
 
 /** One painted hex on a map, before serialization. */
 export interface MapCell {
@@ -87,6 +89,10 @@ export interface TerrainKindDoc {
   footprint?: number;
   model?: RenderModelDoc;
   sprite?: RenderSpriteDoc;
+  /** Editor-only: which registry generator (KindForm.tsx) previews this kind's
+   *  mesh in the painter. Never serialized — the wire format only carries the
+   *  baked render.model/render.sprite tuning, not which generator made it. */
+  generatorType?: ArtifactType;
 }
 
 /** Wire format for one entry in data/terrain.json's "terrain" array. */

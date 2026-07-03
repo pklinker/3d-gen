@@ -243,6 +243,27 @@ export function saveFilesPlugin(): Plugin {
           }
         });
       });
+
+      // Read-only listings so the Maps painter's palette/map picker can load
+      // the game's CURRENT catalog (core + whatever mods are layered in) —
+      // "editor and game never drift" (§6.1). Empty array when the game dir is
+      // unreachable or the file doesn't exist yet; never an error, since an
+      // empty catalog (or no game connection) is a normal, expected state.
+      server.middlewares.use("/api/terrain-kinds", (req, res) => {
+        res.setHeader("Content-Type", "application/json");
+        void loadSettings().then(async ({ gameDir }) => {
+          const data = await readJsonOr<TerrainFile>(dataFilePath(gameDir, "terrain.json"), { terrain: [] });
+          res.end(JSON.stringify(data));
+        });
+      });
+
+      server.middlewares.use("/api/maps", (req, res) => {
+        res.setHeader("Content-Type", "application/json");
+        void loadSettings().then(async ({ gameDir }) => {
+          const data = await readJsonOr<MapsFile>(dataFilePath(gameDir, "maps.json"), { maps: [] });
+          res.end(JSON.stringify(data));
+        });
+      });
     },
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { kindDocToEntry, mapDocToEntry } from "../serialize";
+import { entryToKindDoc, entryToMapDoc, kindDocToEntry, mapDocToEntry } from "../serialize";
 import {
   GOLDEN_DEAD_SEA_BOTTOM_DOC,
   GOLDEN_DEAD_SEA_BOTTOM_ENTRY,
@@ -113,5 +113,36 @@ describe("kindDocToEntry — optional render fields", () => {
       anchor: 0.5,
       dir: "buildings",
     });
+  });
+});
+
+// entryToKindDoc / entryToMapDoc: the inverse direction, used by
+// useCatalogData.ts to reopen an existing map/kind for editing. Round-tripping
+// a golden entry through entry -> doc -> entry must reproduce it exactly, or a
+// re-export would silently drop or mangle a field on every reopened map.
+describe("entryToKindDoc / entryToMapDoc — round-trip against golden fixtures", () => {
+  it("hill: entry -> doc -> entry reproduces the original entry", () => {
+    expect(kindDocToEntry(entryToKindDoc(GOLDEN_HILL_ENTRY))).toEqual(GOLDEN_HILL_ENTRY);
+  });
+
+  it("tower: entry -> doc -> entry reproduces the original entry", () => {
+    expect(kindDocToEntry(entryToKindDoc(GOLDEN_TOWER_ENTRY))).toEqual(GOLDEN_TOWER_ENTRY);
+  });
+
+  it("dust_storm: entry -> doc -> entry reproduces the original entry", () => {
+    expect(kindDocToEntry(entryToKindDoc(GOLDEN_DUST_STORM_ENTRY))).toEqual(GOLDEN_DUST_STORM_ENTRY);
+  });
+
+  it("dead_sea_bottom: entry -> doc -> entry reproduces the original entry", () => {
+    expect(mapDocToEntry(entryToMapDoc(GOLDEN_DEAD_SEA_BOTTOM_ENTRY))).toEqual(GOLDEN_DEAD_SEA_BOTTOM_ENTRY);
+  });
+
+  it("storm_front: entry -> doc -> entry reproduces the original entry", () => {
+    expect(mapDocToEntry(entryToMapDoc(GOLDEN_STORM_FRONT_ENTRY))).toEqual(GOLDEN_STORM_FRONT_ENTRY);
+  });
+
+  it("an entry with an unrecognised category falls back to 'terrain' rather than producing an invalid doc", () => {
+    const doc = entryToKindDoc({ ...GOLDEN_HILL_ENTRY, category: "mystery" });
+    expect(doc.category).toBe("terrain");
   });
 });

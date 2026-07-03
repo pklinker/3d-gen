@@ -16,10 +16,33 @@
 html, body, #root { height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--text); }
 
+.app-shell { display: flex; flex-direction: column; height: 100vh; }
+
+.mode-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.mode-tabs button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.mode-tabs button:hover { color: var(--text); }
+.mode-tabs button.active { background: var(--accent); color: #1a1710; }
+
 .app {
   display: grid;
   grid-template-columns: 300px 1fr 320px;
-  height: 100vh;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .panel {
@@ -159,3 +182,57 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .muted { color: var(--muted); }
 .small { font-size: 12px; line-height: 1.5; }
 code { background: var(--panel2); padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+
+/* Maps editor: palette + kind-definition form */
+.palette-list { display: flex; flex-direction: column; gap: 4px; }
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel2);
+}
+.palette-item.active { border-color: var(--accent); }
+.palette-item > button { background: none; border: none; }
+.palette-swatch-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  color: var(--text);
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.palette-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.palette-export-btn {
+  color: var(--muted);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.palette-export-btn:hover { color: var(--accent); }
+
+.kind-form { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 10px; }
+.kind-form .check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 6px 0; }
+.kind-form .check input { accent-color: var(--accent); }
+
+/* Plain text/number/select fields in a .param-row (Map Editor's board controls,
+ * KindForm's fields) — the rest of the app only ever used sliders/checkbox/color
+ * in a .param-row until now, so there was no generic box styling for these. */
+.param-row select,
+.param-row input:not([type="checkbox"]):not([type="color"]):not([type="range"]) {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 8px;
+  width: 100%;
+}

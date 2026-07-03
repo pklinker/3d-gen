@@ -54,3 +54,47 @@ export function kindDocToEntry(doc: TerrainKindDoc): TerrainKindEntry {
     render,
   };
 }
+
+// --- Inverse direction: loading the game's live catalog into the editor -----
+// (useCatalogData.ts fetches GET /api/terrain-kinds / /api/maps and hydrates
+// these into palette/map state so an existing map can be reopened and re-
+// exported, not just authored blind.)
+
+function modelToDoc(m: RenderModelEntry): RenderModelDoc {
+  return { dir: m.dir, prefix: m.prefix, frame: m.frame, span: m.span, lookY: m.look_y, anchor: m.anchor };
+}
+
+/** TerrainKindEntry -> TerrainKindDoc. `category` widens to the Doc's open
+ *  union defensively — an entry from an old/foreign pack could carry anything
+ *  in that string field; unrecognised values fall back to "terrain" rather
+ *  than producing an invalid Doc. generatorType is left unset (the wire
+ *  format doesn't carry it — see TerrainKindDoc.generatorType). */
+export function entryToKindDoc(entry: TerrainKindEntry): TerrainKindDoc {
+  const category = entry.category === "building" ? "building" : "terrain";
+  const doc: TerrainKindDoc = {
+    id: entry.id,
+    displayName: entry.display_name,
+    category,
+    blocksLos: entry.blocks_los,
+    spotPenalty: entry.spot_penalty,
+    color: entry.render.color,
+    height: entry.render.height,
+  };
+  if (entry.render.footprint !== undefined) doc.footprint = entry.render.footprint;
+  if (entry.render.model) doc.model = modelToDoc(entry.render.model);
+  if (entry.render.sprite) doc.sprite = { ...entry.render.sprite };
+  return doc;
+}
+
+/** MapEntry -> MapDoc, for reopening an existing map to keep editing it. */
+export function entryToMapDoc(entry: MapEntry): MapDoc {
+  return {
+    id: entry.id,
+    displayName: entry.display_name,
+    cols: entry.cols,
+    rows: entry.rows,
+    deployZoneCols: entry.deploy_zone_cols,
+    deployMinSeparation: entry.deploy_min_separation,
+    cells: entry.terrain.map((c) => ({ q: c.hex[0], r: c.hex[1], kind: c.type })),
+  };
+}
