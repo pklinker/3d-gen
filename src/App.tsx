@@ -14,10 +14,14 @@ import type { ConformReport } from "./generation/conform";
 import { validateMesh } from "./contract/validate";
 import type { ValidationResult } from "./contract/validate";
 import { savePreset, loadPreset } from "./export/presets";
+import MapEditor from "./maps/MapEditor";
+import ErrorBoundary from "./ui/ErrorBoundary";
 
 type Tab = "procedural" | "ai";
+type Mode = "artifacts" | "maps";
 
 export default function App() {
+  const [mode, setMode] = useState<Mode>("artifacts");
   const [type, setType] = useState<ArtifactType>("hill");
   const def = getArtifact(type);
 
@@ -105,7 +109,22 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app-shell">
+      <div className="mode-tabs">
+        <button className={mode === "artifacts" ? "active" : ""} onClick={() => setMode("artifacts")}>
+          Artifacts
+        </button>
+        <button className={mode === "maps" ? "active" : ""} onClick={() => setMode("maps")}>
+          Maps
+        </button>
+      </div>
+      <div className="app">
+        {mode === "maps" ? (
+          <ErrorBoundary>
+            <MapEditor />
+          </ErrorBoundary>
+        ) : (
+          <>
       {/* LEFT: generation controls */}
       <aside className="panel left">
         <h1>Terrain Artifact Editor</h1>
@@ -260,6 +279,9 @@ export default function App() {
           effect={derived.effect}
         />
       </aside>
+          </>
+        )}
+      </div>
     </div>
   );
 }

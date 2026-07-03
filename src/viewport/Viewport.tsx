@@ -1,22 +1,10 @@
 import { useMemo, useRef, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { MAP_BG, ROTATION_STEP_DEG, READ_CHECK_PX } from "../contract/constants";
 import type { GeneratedEffect } from "../types";
-
-// Match the game's bake rig (ui/terrain_models.gd): orthographic camera looking
-// from +Z (north) at 35° elevation toward the model's mid-height. The field
-// rotation spins the model (the pivot), not the camera.
-const ISO_ELEVATION_DEG = 35;
-const LOOK_Y = 0.4;
-const CAM_DIST = 10;
-const elev = (ISO_ELEVATION_DEG * Math.PI) / 180;
-const CAM_POS: [number, number, number] = [
-  0,
-  LOOK_Y + Math.sin(elev) * CAM_DIST,
-  Math.cos(elev) * CAM_DIST,
-];
+import { CAM_POS, IsoCamera } from "./isoCamera";
 
 interface ViewportProps {
   meshGeometry: THREE.BufferGeometry | null;
@@ -136,16 +124,6 @@ function Content({ meshGeometry, meshMaterial, effect, fieldRotationDeg, snapRot
       {effect && <EffectBillboard effect={effect} />}
     </group>
   );
-}
-
-/** Isometric orthographic camera roughly matching the game's bake angle. */
-function IsoCamera() {
-  const { camera } = useThree();
-  useMemo(() => {
-    camera.position.set(...CAM_POS);
-    camera.lookAt(0, LOOK_Y, 0);
-  }, [camera]);
-  return null;
 }
 
 export default function Viewport(props: ViewportProps) {
