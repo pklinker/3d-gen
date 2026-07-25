@@ -13,7 +13,7 @@
 // happen to serialize) is what makes serialize.ts a single, testable seam — if
 // the flyers schema changes, exactly one function needs to change here too.
 
-import type { ArtifactType } from "../types";
+import type { ArtifactType, ParamValues } from "../types";
 
 /** One painted hex on a map, before serialization. */
 export interface MapCell {
@@ -93,6 +93,12 @@ export interface TerrainKindDoc {
    *  mesh in the painter. Never serialized — the wire format only carries the
    *  baked render.model/render.sprite tuning, not which generator made it. */
   generatorType?: ArtifactType;
+  /** Editor-only: the generator's seed/params for kinds that came from a saved
+   *  variant (src/variants/), so the painter previews THAT tuning rather than
+   *  the generator's defaults. Unset = defaults (seed 1), the pre-variant
+   *  behaviour every auto-derived and hand-authored kind still gets. */
+  generatorSeed?: number;
+  generatorParams?: ParamValues;
 }
 
 /** Wire format for one entry in data/terrain.json's "terrain" array. */

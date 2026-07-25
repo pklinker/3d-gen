@@ -101,6 +101,33 @@ no key.
    running you can **write directly into the game's `assets/terrain/`**; otherwise
    the files download and a ready-made credits line is copied to your clipboard.
 
+### Variants — saving a tuning and painting it
+
+A **variant** is a named tuning of one generator: "Dry Moss Dunes" and
+"Overgrown Moss Dunes" are two variants of the single Moss Dunes artifact,
+differing only in seed + params. Type a name under **Variants** and hit **Save
+variant**; the dev server writes it to `data/variants.json` in this repo, so it
+survives reloads and travels with the project.
+
+Saving one gets you three things:
+
+- it reopens from the variant list (click to load its type, seed and params);
+- it **exports under its own name** — with a variant loaded, the export filename
+  becomes `dry_moss_dunes_1.glb` instead of the generator's `mossdunes_1.glb`,
+  so variants no longer overwrite each other;
+- it appears in the **Maps palette** as its own terrain kind, painting with its
+  actual tuned mesh rather than the generator's defaults. Exporting that kind
+  writes a `terrain.json` entry whose `render.model.prefix` is the variant id —
+  i.e. it points at the `.glb` the Artifacts tab just exported.
+
+So "three kinds of moss dunes on one map" is: tune → save variant (×3) → export
+each `.glb` → paint them in Maps → export the map.
+
+Variants are editor-side authoring data (the game never sees generator params —
+it reads baked assets plus `terrain.json`), which is why they live here and not
+in the game's `data/`. **Export file / Import file** next to the list are for
+handing a single tuning to someone else; the file store is what persists.
+
 ### The contract
 
 Encoded in `src/contract/constants.ts` as the single source of truth (1 unit =

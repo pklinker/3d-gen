@@ -23,6 +23,11 @@ interface Props {
   canExportMesh: boolean;
   source: string;
   effect: GeneratedEffect | null;
+  /** Saved-variant id, when one is loaded. Replaces def.fileStem in the output
+   *  name so a variant exports as moss_dry_1.glb — which is exactly the prefix
+   *  its terrain kind points at (src/variants/toKind.ts) — rather than
+   *  overwriting the generator's stock mossdunes_1.glb. */
+  fileStem?: string;
 }
 
 export default function ExportPanel({
@@ -34,6 +39,7 @@ export default function ExportPanel({
   canExportMesh,
   source,
   effect,
+  fileStem,
 }: Props) {
   const [variant, setVariant] = useState(1);
   const [status, setStatus] = useState<string | null>(null);
@@ -56,7 +62,7 @@ export default function ExportPanel({
   }, []);
 
   const assetSubdir = CATEGORY_DIRS[def.category] ?? "assets/terrain";
-  const stem = `${def.fileStem}_${variant}`;
+  const stem = `${fileStem || def.fileStem}_${variant}`;
   const glbName = `${stem}.glb`;
   const canDirect = !!target?.reachable && toGame;
 

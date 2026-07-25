@@ -1,3 +1,9 @@
+// Single-tuning file interchange: download the current tuning as a .json a
+// modder can hand to someone else, and read one back. This is the SHARING
+// path only — persistence across reloads is the variant store's job
+// (src/variants/store.ts, data/variants.json), since a downloaded file the
+// editor never reads again can't be a store.
+
 import type { ArtifactType, ParamValues } from "../types";
 import { downloadBlob } from "./gltfExport";
 

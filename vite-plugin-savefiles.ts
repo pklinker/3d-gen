@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { upsertById } from "./src/maps/merge";
 import type { MapEntry, MapsFile, TerrainFile, TerrainKindEntry } from "./src/maps/types";
+import type { ArtifactVariant, VariantsFile } from "./src/variants/types";
 
 // Dev-only endpoint that writes exported assets straight into the game repo's
 // category-specific asset subdirectory and maintains assets/CREDITS.md.
@@ -18,6 +19,11 @@ import type { MapEntry, MapsFile, TerrainFile, TerrainKindEntry } from "./src/ma
 
 const DEFAULT_GAME_DIR = "/Users/paulklinker/src/flyers";
 const SETTINGS_FILE = path.join(process.cwd(), ".3d-gen-settings.json");
+// Saved artifact variants (src/variants/types.ts). Unlike maps/terrain kinds
+// this file belongs to the EDITOR, not the game — it holds generator params,
+// which the game never reads — so it lives in this repo and is committed with
+// it, making an authored variant survive reloads, browsers and machines.
+const VARIANTS_FILE = path.join(process.cwd(), "data", "variants.json");
 
 const CATEGORY_DIRS: Record<string, string> = {
   buildings: "assets/buildings",
@@ -262,6 +268,59 @@ export function saveFilesPlugin(): Plugin {
         void loadSettings().then(async ({ gameDir }) => {
           const data = await readJsonOr<MapsFile>(dataFilePath(gameDir, "maps.json"), { maps: [] });
           res.end(JSON.stringify(data));
+        });
+      });
+
+      // Saved artifact variants. GET lists them; POST upserts one by id (same
+      // merge rule as maps/kinds — a re-save of "moss_dry" replaces it in
+      // place). Both return the full list so the client never has to re-fetch
+      // to know what it now has.
+      server.middlewares.use("/api/variants", (req, res) => {
+        res.setHeader("Content-Type", "application/json");
+        if (req.method === "GET") {
+          void readJsonOr<VariantsFile>(VARIANTS_FILE, { variants: [] }).then((data) =>
+            res.end(JSON.stringify(data)),
+          );
+          return;
+        }
+        if (req.method === "POST") {
+          void readBody(req).then(async (raw) => {
+            try {
+              const { entry } = JSON.parse(raw) as { entry: ArtifactVariant };
+              if (!entry?.id) throw new Error("variant needs an id");
+              const current = await readJsonOr<VariantsFile>(VARIANTS_FILE, { variants: [] });
+              const variants = upsertById(current.variants, entry);
+              await writeJsonMerged(VARIANTS_FILE, { variants });
+              res.end(JSON.stringify({ ok: true, file: VARIANTS_FILE, variants }));
+            } catch (e) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ ok: false, error: (e as Error).message }));
+            }
+          });
+          return;
+        }
+        res.statusCode = 405;
+        res.end("GET/POST only");
+      });
+
+      server.middlewares.use("/api/delete-variant", (req, res) => {
+        if (req.method !== "POST") {
+          res.statusCode = 405;
+          res.end("POST only");
+          return;
+        }
+        void readBody(req).then(async (raw) => {
+          try {
+            const { id } = JSON.parse(raw) as { id: string };
+            const current = await readJsonOr<VariantsFile>(VARIANTS_FILE, { variants: [] });
+            const variants = current.variants.filter((v) => v.id !== id);
+            await writeJsonMerged(VARIANTS_FILE, { variants });
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ ok: true, file: VARIANTS_FILE, variants }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ ok: false, error: (e as Error).message }));
+          }
         });
       });
     },

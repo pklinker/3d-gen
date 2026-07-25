@@ -13,9 +13,14 @@ export interface KindMesh {
 /** Build the preview mesh for a kind's bound generator — an existing artifact
  *  from the registry (hillDef, towerDef, a building def…), exactly as
  *  MAP_MODDING.md §6.1 asks: "preview each painted kind using its existing
- *  generator… so the map preview shows the actual in-game assets." Deterministic
- *  (seed 1, default params) since a map cell only ever needs "what this kind
- *  looks like," not per-cell variation.
+ *  generator… so the map preview shows the actual in-game assets."
+ *
+ *  Deterministic, but not necessarily at the generator's defaults: a kind saved
+ *  as a variant (src/variants/) carries its own seed + params, which is what
+ *  lets three moss-dunes variants paint as three visibly different meshes
+ *  instead of three copies of the stock one. A kind without them keeps the
+ *  original behaviour (seed 1, default params) — a map cell only ever needs
+ *  "what this kind looks like," not per-cell variation.
  *
  *  Returns null for a kind with no bound generator, or one whose generator is
  *  effect-output (dust, gas clouds…) — the game plays those as an animated
@@ -27,9 +32,13 @@ export function buildKindMesh(kind: TerrainKindDoc): KindMesh | null {
   const def = getArtifact(artifactType);
   if (def.output !== "mesh") return null;
 
-  const baseParams = defaultParams(def.params);
-  const genParams = def.category === "buildings" ? { ...baseParams, ornament: 0.4 } : baseParams;
-  const res = def.generate(1, genParams);
+  // Variant params layer over the defaults rather than replacing them, so a
+  // variant saved before a generator gained a param still builds (the new
+  // param takes its default instead of arriving undefined).
+  const baseParams = { ...defaultParams(def.params), ...kind.generatorParams };
+  const genParams =
+    def.category === "buildings" ? { ornament: 0.4, ...baseParams } : baseParams;
+  const res = def.generate(kind.generatorSeed ?? 1, genParams);
   const rawGeometry = (res as { geometry: THREE.BufferGeometry }).geometry;
 
   const contract = def.contract ?? "hill";

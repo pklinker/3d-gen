@@ -5,3 +5,5 @@ dist
 *.log
 .3d-gen-settings.json
 .gstack/
+data
+.claude

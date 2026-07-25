@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import Viewport from "./viewport/Viewport";
 import ParamPanel from "./ui/ParamPanel";
@@ -14,6 +14,9 @@ import type { ConformReport } from "./generation/conform";
 import { validateMesh } from "./contract/validate";
 import type { ValidationResult } from "./contract/validate";
 import { savePreset, loadPreset } from "./export/presets";
+import { listVariants, saveVariant, deleteVariant } from "./variants/store";
+import { variantId } from "./variants/toKind";
+import type { ArtifactVariant } from "./variants/types";
 import MapEditor from "./maps/MapEditor";
 import ErrorBoundary from "./ui/ErrorBoundary";
 
@@ -50,6 +53,22 @@ export default function App() {
   const [hexMask, setHexMask] = useState(false);
   const [source, setSource] = useState("procedural");
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Saved variants (data/variants.json via the dev server) — the named tunings
+  // this editor can reopen, export as their own asset, and paint in the Maps
+  // tab. `variantsPersisted` false means the dev endpoints weren't there and
+  // the list is a browser-local mirror; the UI says so rather than implying
+  // a file was written.
+  const [variants, setVariants] = useState<ArtifactVariant[]>([]);
+  const [variantsPersisted, setVariantsPersisted] = useState(true);
+  const [variantName, setVariantName] = useState("");
+  const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
+  useEffect(() => {
+    void listVariants().then((r) => {
+      setVariants(r.variants);
+      setVariantsPersisted(r.persisted);
+    });
+  }, []);
 
   // AI-imported geometry overrides procedural for the current render, until params change.
   const [aiGeometry, setAiGeometry] = useState<THREE.BufferGeometry | null>(null);
@@ -95,17 +114,63 @@ export default function App() {
   // Switch the selected artifact, resetting AI overrides and the procedural/AI subtab.
   function selectType(t: ArtifactType) {
     setType(t);
+    setActiveVariantId(null);
     setAiGeometry(null);
     setSource("procedural");
     if (getArtifact(t).output === "effect") setTab("procedural");
   }
-  async function onLoadPreset(file: File) {
-    const p = await loadPreset(file);
+  const activeVariant = variants.find((v) => v.id === activeVariantId) ?? null;
+  const defaultVariantName = activeVariant?.displayName ?? `${def.label} ${seed}`;
+
+  // A saved tuning may name an artifact type this build no longer has (renamed
+  // or removed generator) — refuse it rather than crashing the registry lookup.
+  function applyTuning(p: { type: ArtifactType; seed: number; params: ParamValues }) {
+    if (!ARTIFACTS.some((a) => a.type === p.type)) {
+      alert(`That tuning references unknown artifact type "${p.type}".`);
+      return;
+    }
+    // Buildings carry the global ornamentation level inside their saved params
+    // (it feeds generate() but lives outside per-type params here), so lift it
+    // back out into its own control.
+    if (typeof p.params.ornament === "number") setOrnament(p.params.ornament);
     setType(p.type);
     setParamsByType((prev) => ({ ...prev, [p.type]: p.params }));
     setSeedByType((prev) => ({ ...prev, [p.type]: p.seed }));
     setAiGeometry(null);
     setSource("procedural");
+  }
+  async function onLoadPreset(file: File) {
+    setActiveVariantId(null);
+    applyTuning(await loadPreset(file));
+  }
+
+  function applyVariant(v: ArtifactVariant) {
+    applyTuning(v);
+    setActiveVariantId(v.id);
+  }
+  async function onSaveVariant() {
+    const displayName = (variantName.trim() || defaultVariantName).slice(0, 60);
+    const id = variantId(displayName);
+    if (!id) return;
+    const entry: ArtifactVariant = {
+      id,
+      displayName,
+      type,
+      seed,
+      params: def.category === "buildings" ? { ...params, ornament } : params,
+      savedAt: Date.now(),
+    };
+    const r = await saveVariant(entry);
+    setVariants(r.variants);
+    setVariantsPersisted(r.persisted);
+    setActiveVariantId(id);
+    setVariantName("");
+  }
+  async function onDeleteVariant(id: string) {
+    const r = await deleteVariant(id);
+    setVariants(r.variants);
+    setVariantsPersisted(r.persisted);
+    if (activeVariantId === id) setActiveVariantId(null);
   }
 
   return (
@@ -189,13 +254,70 @@ export default function App() {
           />
         )}
 
-        <div className="presets">
-          <button
-            onClick={() => savePreset({ type, seed, params }, `${def.fileStem}_${seed}`)}
-          >
-            Save preset
+        <h2>Variants</h2>
+        <div className="variant-save">
+          <input
+            type="text"
+            placeholder={defaultVariantName}
+            value={variantName}
+            onChange={(e) => setVariantName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void onSaveVariant()}
+          />
+          <button onClick={() => void onSaveVariant()} title="Save this tuning to data/variants.json">
+            Save variant
           </button>
-          <button onClick={() => fileInput.current?.click()}>Load preset</button>
+        </div>
+
+        {variants.length > 0 ? (
+          <div className="variant-list">
+            {variants.map((v) => {
+              const artifact = ARTIFACTS.find((a) => a.type === v.type);
+              return (
+                <div key={v.id} className={`variant-item${v.id === activeVariantId ? " active" : ""}`}>
+                  <button
+                    className="variant-load-btn"
+                    title={`${artifact?.label ?? v.type} · seed ${v.seed} · paints as kind "${v.id}"`}
+                    onClick={() => applyVariant(v)}
+                  >
+                    <span className="variant-name">{v.displayName}</span>
+                    <span className="variant-type">{artifact?.label ?? v.type}</span>
+                  </button>
+                  <button
+                    className="variant-file-btn"
+                    title="Download this variant as a .json file"
+                    onClick={() => savePreset(v, v.id)}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    className="variant-delete-btn"
+                    title="Delete this variant"
+                    onClick={() => void onDeleteVariant(v.id)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <span className="muted small">
+            A saved variant is a named tuning: it reopens here, exports as its own asset,
+            and appears in the Maps palette.
+          </span>
+        )}
+        {!variantsPersisted && (
+          <span className="muted small">
+            Dev server unreachable — variants are stored in this browser only, not in
+            data/variants.json.
+          </span>
+        )}
+
+        <div className="presets">
+          <button onClick={() => savePreset({ type, seed, params }, activeVariant?.id ?? def.fileStem)}>
+            Export file
+          </button>
+          <button onClick={() => fileInput.current?.click()}>Import file</button>
           <input
             ref={fileInput}
             type="file"
@@ -277,6 +399,7 @@ export default function App() {
           canExportMesh={!!derived.validation?.allPass}
           source={source}
           effect={derived.effect}
+          fileStem={activeVariant?.id}
         />
       </aside>
           </>

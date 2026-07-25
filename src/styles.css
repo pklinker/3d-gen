@@ -124,6 +124,32 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .presets { display: flex; gap: 6px; margin-top: 20px; }
 .presets button { flex: 1; }
 
+.variant-save { display: flex; gap: 6px; }
+.variant-save input {
+  flex: 1; min-width: 0;
+  background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 6px; padding: 6px;
+}
+
+.variant-list { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.variant-item {
+  display: flex; align-items: center; gap: 4px;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.variant-item.active { border-color: var(--accent); }
+.variant-item > button { background: none; border: none; cursor: pointer; }
+.variant-load-btn {
+  flex: 1; min-width: 0;
+  display: flex; align-items: baseline; gap: 8px;
+  text-align: left; color: var(--text); font-size: 13px; padding: 6px 10px;
+}
+.variant-load-btn:hover { color: var(--accent); }
+.variant-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.variant-type { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.variant-file-btn, .variant-delete-btn { color: var(--muted); padding: 6px 8px; }
+.variant-file-btn:hover { color: var(--accent); }
+.variant-delete-btn:hover { color: #e06c6c; }
+
 .utility {
   margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);
   display: flex; flex-direction: column; gap: 6px;
