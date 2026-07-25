@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MapViewport from "./MapViewport";
 import KindForm from "./KindForm";
 import { useCatalogData } from "./useCatalogData";
-import { applyPaint } from "./paint";
+import { applyPaint, eraseCell, setCell } from "./paint";
+import { cellKey } from "./hexGrid";
+import { groupPalette } from "./paletteGroups";
 import { kindDocToEntry, mapDocToEntry } from "./serialize";
 import { saveMapToGame, saveTerrainKindToGame } from "../export/saveMap";
 import type { MapDoc, TerrainKindDoc } from "./types";
+import type { ArtifactCategory } from "../types";
 
 const BLANK_MAP: MapDoc = {
   id: "",
@@ -37,6 +40,16 @@ export default function MapEditor() {
   const [formOpen, setFormOpen] = useState(false);
   const [mapStatus, setMapStatus] = useState<string | null>(null);
   const [kindStatus, setKindStatus] = useState<string | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<ArtifactCategory>>(new Set());
+
+  function toggleSection(category: ArtifactCategory) {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }
 
   function loadMap(id: string) {
     setSelectedMapId(id);
@@ -52,8 +65,36 @@ export default function MapEditor() {
     setDoc((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onCellClick(q: number, r: number) {
-    setDoc((prev) => ({ ...prev, cells: applyPaint(prev.cells, q, r, brush) }));
+  // Brush-drag painting: pointer-down decides the stroke's mode (paint vs.
+  // erase) exactly like a single click's toggle would (applyPaint), then
+  // every subsequent hex the drag enters gets force-set/erased with that same
+  // decision — re-toggling per cell would make a drag flicker cells on/off as
+  // it crosses itself instead of painting/erasing a clean swath.
+  const strokeRef = useRef<{ mode: "paint" | "erase"; lastKey: string } | null>(null);
+
+  function onPaintDown(q: number, r: number) {
+    setDoc((prev) => {
+      const cells = applyPaint(prev.cells, q, r, brush);
+      const painted = brush !== null && cells.some((c) => c.q === q && c.r === r && c.kind === brush);
+      strokeRef.current = { mode: painted ? "paint" : "erase", lastKey: cellKey(q, r) };
+      return { ...prev, cells };
+    });
+  }
+
+  function onPaintMove(q: number, r: number) {
+    const stroke = strokeRef.current;
+    if (!stroke) return;
+    const key = cellKey(q, r);
+    if (key === stroke.lastKey) return;
+    stroke.lastKey = key;
+    setDoc((prev) => ({
+      ...prev,
+      cells: stroke.mode === "erase" ? eraseCell(prev.cells, q, r) : setCell(prev.cells, q, r, brush as string),
+    }));
+  }
+
+  function onPaintUp() {
+    strokeRef.current = null;
   }
 
   async function exportMap() {
@@ -153,7 +194,9 @@ export default function MapEditor() {
           deployZoneCols={doc.deployZoneCols}
           cells={doc.cells}
           kinds={kinds}
-          onCellClick={onCellClick}
+          onPaintDown={onPaintDown}
+          onPaintMove={onPaintMove}
+          onPaintUp={onPaintUp}
         />
       </main>
 
@@ -166,20 +209,36 @@ export default function MapEditor() {
           >
             Eraser
           </button>
-          {kinds.map((k) => (
-            <div key={k.id} className={`palette-item${brush === k.id ? " active" : ""}`}>
-              <button className="palette-swatch-btn" onClick={() => setBrush(k.id)}>
-                <span
-                  className="palette-swatch"
-                  style={{ background: `rgba(${Math.round(k.color[0] * 255)}, ${Math.round(k.color[1] * 255)}, ${Math.round(k.color[2] * 255)}, ${k.color[3]})` }}
-                />
-                {k.displayName}
-              </button>
-              <button className="palette-export-btn" title="Export this kind to the game" onClick={() => exportKind(k)}>
-                ↑
-              </button>
-            </div>
-          ))}
+          {groupPalette(kinds).map((section) => {
+            const isOpen = !collapsedSections.has(section.category);
+            return (
+              <div key={section.category} className="palette-section">
+                <button
+                  className={`palette-section-header${isOpen ? " open" : ""}`}
+                  onClick={() => toggleSection(section.category)}
+                  aria-expanded={isOpen}
+                >
+                  <span className="tree-chevron">▶</span>
+                  {section.label}
+                </button>
+                {isOpen &&
+                  section.kinds.map((k) => (
+                    <div key={k.id} className={`palette-item${brush === k.id ? " active" : ""}`}>
+                      <button className="palette-swatch-btn" onClick={() => setBrush(k.id)}>
+                        <span
+                          className="palette-swatch"
+                          style={{ background: `rgba(${Math.round(k.color[0] * 255)}, ${Math.round(k.color[1] * 255)}, ${Math.round(k.color[2] * 255)}, ${k.color[3]})` }}
+                        />
+                        {k.displayName}
+                      </button>
+                      <button className="palette-export-btn" title="Export this kind to the game" onClick={() => exportKind(k)}>
+                        ↑
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            );
+          })}
         </div>
         {kindStatus && <div className="status">{kindStatus}</div>}
 

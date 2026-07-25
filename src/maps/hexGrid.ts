@@ -1,7 +1,17 @@
-// Pointy-top axial hex-grid math for the Maps painter (MAP_MODDING.md §6.1).
+// Pointy-top hex-grid math for the Maps painter (MAP_MODDING.md §6.1).
 // Circumradius = 1, matching Viewport.tsx's single-hex HexFootprint (same
 // corner-angle formula) — the painter grid is visually consistent with the
 // existing single-artifact preview, just tiled cols x rows instead of one cell.
+//
+// (q, r) here are "offset" coordinates — plain grid column/row, matching
+// MapEntry.terrain's cols x rows rectangular field (fieldCells) — NOT true
+// axial coordinates. Pure axial pixel placement (x = q + r/2) shears the
+// whole board into a parallelogram as r grows; offset placement only nudges
+// odd rows half a hex right ("odd-r" layout), so a cols x rows field renders
+// as an actual rectangle. Internally this still routes through the standard
+// axial fractional/cube-rounding math (roundAxial) — offset coordinates alone
+// don't round correctly near hex boundaries — converting to/from axial only
+// at the integer boundary.
 //
 // This does NOT need to match the game's own HexMath pixel-for-pixel — a map
 // document only ever stores integer {hex:[q,r], type} pairs (MapEntry.terrain);
@@ -17,19 +27,28 @@ export interface Axial {
 
 const SQRT3 = Math.sqrt(3);
 
-/** Center of hex (q, r) in world (x, z), circumradius `size`. */
+/** Center of hex (q, r) — offset column/row — in world (x, z), circumradius
+ *  `size`. Odd rows shove right by half a hex (odd-r offset), so the whole
+ *  cols x rows field renders as a rectangle instead of a sheared parallelogram. */
 export function axialToWorld(q: number, r: number, size = 1): { x: number; z: number } {
   return {
-    x: size * SQRT3 * (q + r / 2),
+    x: size * SQRT3 * (q + 0.5 * (r & 1)),
     z: size * 1.5 * r,
   };
 }
 
-/** Inverse of axialToWorld: world (x, z) -> the nearest integer hex (q, r). */
+/** Inverse of axialToWorld: world (x, z) -> the nearest integer hex (q, r).
+ *  Does the fractional pixel->hex conversion in true axial space (where cube
+ *  rounding is well-defined), then converts the rounded integer axial (q, r)
+ *  back to offset column/row — rounding in offset space directly would get
+ *  the interlocking row boundaries wrong. */
 export function worldToAxial(x: number, z: number, size = 1): Axial {
   const qf = ((x / size) * SQRT3) / 3 - z / size / 3;
   const rf = (z / size * 2) / 3;
-  return roundAxial(qf, rf);
+  const axial = roundAxial(qf, rf);
+  const row = axial.r;
+  const col = axial.q + (row - (row & 1)) / 2;
+  return { q: col, r: row };
 }
 
 /** Round fractional axial coordinates to the nearest integer hex, correcting

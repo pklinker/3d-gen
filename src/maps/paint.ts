@@ -21,3 +21,24 @@ export function applyPaint(cells: MapCell[], q: number, r: number, brush: string
   else next[idx] = painted;
   return next;
 }
+
+/** Force-paint (q, r) to `kind`, no toggle — used for every cell after the
+ *  first in a brush-drag stroke, where re-entering an already-painted cell of
+ *  the stroke's own kind must stay painted rather than flicker off. */
+export function setCell(cells: MapCell[], q: number, r: number, kind: string): MapCell[] {
+  const idx = cells.findIndex((c) => c.q === q && c.r === r);
+  if (idx !== -1 && cells[idx].kind === kind) return cells;
+  const painted = { q, r, kind };
+  if (idx === -1) return [...cells, painted];
+  const next = [...cells];
+  next[idx] = painted;
+  return next;
+}
+
+/** Unconditionally remove whatever's at (q, r), if anything — the drag-stroke
+ *  counterpart of the Eraser brush, and of an erase-stroke started by
+ *  clicking a same-kind cell (applyPaint's toggle). */
+export function eraseCell(cells: MapCell[], q: number, r: number): MapCell[] {
+  const idx = cells.findIndex((c) => c.q === q && c.r === r);
+  return idx === -1 ? cells : cells.filter((_, i) => i !== idx);
+}

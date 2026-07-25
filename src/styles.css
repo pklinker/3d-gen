@@ -185,6 +185,19 @@ code { background: var(--panel2); padding: 1px 4px; border-radius: 3px; font-siz
 
 /* Maps editor: palette + kind-definition form */
 .palette-list { display: flex; flex-direction: column; gap: 4px; }
+.palette-section { display: flex; flex-direction: column; gap: 4px; }
+.palette-section + .palette-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.palette-section-header {
+  width: 100%; text-align: left;
+  background: transparent; border: 1px solid transparent;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); padding: 2px 4px; margin-bottom: 2px;
+}
+.palette-section-header:hover { color: var(--text); }
+.palette-section-header.open { color: var(--text); }
+.palette-section-header .tree-chevron { font-size: 9px; }
+.palette-section-header.open .tree-chevron { transform: rotate(90deg); }
 .palette-item {
   display: flex;
   align-items: center;

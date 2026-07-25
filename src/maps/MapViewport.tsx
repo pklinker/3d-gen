@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Instances, Instance, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { MAP_BG } from "../contract/constants";
@@ -16,9 +16,14 @@ interface MapViewportProps {
   deployZoneCols: number;
   cells: MapCell[];
   kinds: TerrainKindDoc[];
-  /** Fires with the clicked hex; MapEditor decides paint vs. erase based on
-   *  the current brush — this component only reports where the user clicked. */
-  onCellClick: (q: number, r: number) => void;
+  /** Left-button-down on a hex — starts a paint/erase stroke (MapEditor
+   *  decides which, from the current brush). */
+  onPaintDown: (q: number, r: number) => void;
+  /** Fires as the left-button-held drag enters each new hex, continuing the
+   *  stroke started by onPaintDown. */
+  onPaintMove: (q: number, r: number) => void;
+  /** Left button released — ends the stroke. */
+  onPaintUp: () => void;
 }
 
 /** Single-hex triangle fan, built once at module scope — the shared geometry
@@ -68,31 +73,76 @@ function DeployBand({ cols, rows, deployZoneCols }: { cols: number; rows: number
   );
 }
 
-/** Invisible-in-spirit ground plane (painted MAP_BG, matching Viewport.tsx's
- *  single-artifact Ground) that turns a click into a hex via worldToAxial. */
-function GroundPlane({
+/** Ground plane (painted MAP_BG, matching Viewport.tsx's single-artifact
+ *  Ground) — purely visual background; PaintPlane owns hex click/drag input. */
+function GroundPlane({ cols, rows }: { cols: number; rows: number }) {
+  const box = useMemo(() => boardBounds(cols, rows), [cols, rows]);
+
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[box.cx, -0.002, box.cz]}>
+      <planeGeometry args={[box.width, box.depth]} />
+      <meshStandardMaterial color={MAP_BG} roughness={1} metalness={0} />
+    </mesh>
+  );
+}
+
+/** Invisible plane raised above every possible painted mesh (tallest kind is
+ *  well under a couple world-units) so it's always the nearest hit along the
+ *  camera ray, regardless of what's painted at a hex — otherwise a tall
+ *  building model would occlude the ground plane in the raycast and you
+ *  couldn't click that hex again. Owns all hex paint input: pointer-down
+ *  starts a stroke, pointer-move (while the left button is held) continues
+ *  it, pointer-up ends it. Alt-drags are ignored here — that's the orbit
+ *  gesture (§ MapViewport's <OrbitControls mouseButtons>). */
+function PaintPlane({
   cols,
   rows,
-  onCellClick,
+  onPaintDown,
+  onPaintMove,
+  onPaintUp,
 }: {
   cols: number;
   rows: number;
-  onCellClick: (q: number, r: number) => void;
+  onPaintDown: (q: number, r: number) => void;
+  onPaintMove: (q: number, r: number) => void;
+  onPaintUp: () => void;
 }) {
   const box = useMemo(() => boardBounds(cols, rows), [cols, rows]);
+
+  // The pointer ray hits THIS plane at y=3, so e.point is parallax-shifted
+  // toward the camera relative to the board (≈ 3/tan(35°) world units at the
+  // default elevation — several hexes' worth). The hex the user is pointing
+  // at lives where the ray meets the GROUND (y=0), so extend the ray there
+  // instead of using the hit point. Returns null when the ray is parallel to
+  // the ground (camera orbited to the horizon).
+  function hexAtGround(ray: THREE.Ray): { q: number; r: number } | null {
+    if (Math.abs(ray.direction.y) < 1e-6) return null;
+    const t = -ray.origin.y / ray.direction.y;
+    return worldToAxial(ray.origin.x + t * ray.direction.x, ray.origin.z + t * ray.direction.z);
+  }
 
   return (
     <mesh
       rotation={[-Math.PI / 2, 0, 0]}
-      position={[box.cx, -0.002, box.cz]}
-      onClick={(e) => {
+      position={[box.cx, 3, box.cz]}
+      onPointerDown={(e) => {
+        if (e.button !== 0 || e.altKey) return; // alt-drag = orbit, not paint
         e.stopPropagation();
-        const { q, r } = worldToAxial(e.point.x, e.point.z);
-        if (q >= 0 && q < cols && r >= 0 && r < rows) onCellClick(q, r);
+        const hex = hexAtGround(e.ray);
+        if (hex && hex.q >= 0 && hex.q < cols && hex.r >= 0 && hex.r < rows) onPaintDown(hex.q, hex.r);
+      }}
+      onPointerMove={(e) => {
+        if ((e.buttons & 1) === 0 || e.altKey) return; // left button not held, or orbiting
+        const hex = hexAtGround(e.ray);
+        if (hex && hex.q >= 0 && hex.q < cols && hex.r >= 0 && hex.r < rows) onPaintMove(hex.q, hex.r);
+      }}
+      onPointerUp={(e) => {
+        if (e.button !== 0) return;
+        onPaintUp();
       }}
     >
       <planeGeometry args={[box.width, box.depth]} />
-      <meshStandardMaterial color={MAP_BG} roughness={1} metalness={0} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
     </mesh>
   );
 }
@@ -173,7 +223,35 @@ function fitZoom(width: number, depth: number): number {
   return Math.max(4, Math.min(400, VIEWPORT_PX / Math.max(width, depth, 1)));
 }
 
-export default function MapViewport({ cols, rows, deployZoneCols, cells, kinds, onCellClick }: MapViewportProps) {
+/** Redraws the on-demand (`frameloop="demand"`) canvas whenever the scene's
+ *  content changes. Without this, the map editor would rely on R3F's shared
+ *  render loop being alive — but that loop halts itself when no root is
+ *  requesting frames, and this static scene has no `useFrame` to keep it
+ *  running. A paint would then mutate the scene graph with nothing calling
+ *  `invalidate()`, so the new cell wouldn't draw until an unrelated camera
+ *  change (zoom/orbit) restarted the loop. OrbitControls already invalidates
+ *  on camera moves; this covers every content change (`deps`). Two frames are
+ *  requested because drei's <Instances> positions its matrices in a useFrame
+ *  that runs the frame AFTER the instance list changes. */
+function RedrawOnChange({ deps }: { deps: unknown[] }) {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    invalidate(2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return null;
+}
+
+export default function MapViewport({
+  cols,
+  rows,
+  deployZoneCols,
+  cells,
+  kinds,
+  onPaintDown,
+  onPaintMove,
+  onPaintUp,
+}: MapViewportProps) {
   const bounds = useMemo(() => boardBounds(cols, rows), [cols, rows]);
   const [zoom, setZoom] = useState(() => fitZoom(bounds.width, bounds.depth));
   // Re-frame (both zoom and look target) whenever the board is resized —
@@ -183,23 +261,55 @@ export default function MapViewport({ cols, rows, deployZoneCols, cells, kinds, 
     setZoom(fitZoom(bounds.width, bounds.depth));
   }, [bounds.width, bounds.depth]);
 
+  // Alt(⌥)+left-drag orbits; plain left-drag paints. The left button can't be
+  // BOTH paint and orbit, and orbit can't live only on the middle button — a
+  // Mac trackpad/Magic Mouse has no middle button, which would make the iso
+  // tilt unreachable entirely. So the Alt state hands LEFT to OrbitControls
+  // for the duration (PaintPlane ignores alt-drags on its side).
+  const [altHeld, setAltHeld] = useState(false);
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "Alt") setAltHeld(true);
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === "Alt") setAltHeld(false);
+    };
+    const clear = () => setAltHeld(false); // release on focus loss (⌘-tab away mid-hold)
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", clear);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", clear);
+    };
+  }, []);
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <Canvas
         orthographic
+        frameloop="demand"
         camera={{ zoom, position: camPosForTarget(bounds.cx, LOOK_Y, bounds.cz), near: -200, far: 200 }}
         style={{ background: "#1c1a16" }}
       >
         <IsoCamera lookX={bounds.cx} lookY={LOOK_Y} lookZ={bounds.cz} />
+        <RedrawOnChange deps={[cols, rows, deployZoneCols, cells, kinds, bounds.cx, bounds.cz]} />
         <ambientLight intensity={0.8} />
         <directionalLight position={[4, 6, 2]} intensity={1.1} />
-        <GroundPlane cols={cols} rows={rows} onCellClick={onCellClick} />
+        <GroundPlane cols={cols} rows={rows} />
         <DeployBand cols={cols} rows={rows} deployZoneCols={deployZoneCols} />
         <GridLines cols={cols} rows={rows} />
         <PaintedCells cols={cols} rows={rows} cells={cells} kinds={kinds} />
+        <PaintPlane cols={cols} rows={rows} onPaintDown={onPaintDown} onPaintMove={onPaintMove} onPaintUp={onPaintUp} />
         <OrbitControls
           makeDefault
           enablePan
+          mouseButtons={{
+            LEFT: altHeld ? THREE.MOUSE.ROTATE : undefined,
+            MIDDLE: THREE.MOUSE.ROTATE,
+            RIGHT: THREE.MOUSE.PAN,
+          }}
           target={[bounds.cx, LOOK_Y, bounds.cz]}
           minZoom={4}
           maxZoom={400}
@@ -207,7 +317,7 @@ export default function MapViewport({ cols, rows, deployZoneCols, cells, kinds, 
         />
       </Canvas>
       <div className="viewport-hint">
-        drag = orbit · right-drag = pan · scroll = zoom · click a hex = paint/erase · {Math.round(zoom)}
+        drag = paint/erase · ⌥-drag = orbit · right-drag = pan · scroll = zoom · {Math.round(zoom)}
       </div>
     </div>
   );
