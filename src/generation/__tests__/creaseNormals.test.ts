@@ -8,10 +8,17 @@ import { conformGeometry } from "../conform";
 import { ARTIFACTS } from "../../artifacts/registry";
 import { defaultParams } from "../../types";
 
-/** A capped 8-sided cylinder: shallow edges around the barrel, 90° edges at the caps. */
+/**
+ * A capped 8-sided cylinder: 45° edges around the barrel, 90° edges at the caps.
+ *
+ * The radius is deliberately small. `radialFor` raises the side count for anything wide
+ * enough to polygonise on screen — at r = 0.3 it would hand back 24 sides and the barrel
+ * edges would be 15°, not 45°, silently changing what these crease-angle tests are testing.
+ * At this radius the requested 8 is the floor that wins, so the edge angle is known.
+ */
 function cylinder(): THREE.BufferGeometry {
   const P: number[] = [], I: number[] = [];
-  tube(P, I, [0, 0, 0], [0, 1, 0], 0.3, 8, true, true);
+  tube(P, I, [0, 0, 0], [0, 1, 0], 0.02, 8, true, true);
   return facet(buildGeometry(P, I));
 }
 

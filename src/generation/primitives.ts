@@ -45,6 +45,34 @@ function vert(P: number[], x: number, y: number, z: number): number {
 }
 
 /**
+ * Radial resolution that actually resolves at the size the game blits.
+ *
+ * Detail is only worth paying for if it survives the bake. The game renders each model to a
+ * 192px sprite (`ModelBaker.BAKE_SIZE`) framing roughly 2.4 hex units, so one unit is about
+ * 80px and a 3px facet edge is about 0.037 units. A barrel of radius 0.018 has a whole
+ * circumference of ~0.11 units — three facets' worth — so subdividing it further changes
+ * nothing anyone will ever see, while a 0.15-radius radome spans ~0.94 units and visibly
+ * polygonises at eight sides.
+ *
+ * Measured, rather than assumed: doubling every radial count on the battleship raised it 86%
+ * in triangles and moved 2.3% of its sprite pixels by more than 16/255. The same treatment on
+ * the observatory — which has one genuinely large curved surface, its shaft — moved 8.9%.
+ * Blanket detail is close to worthless here; detail proportional to on-screen size is not.
+ *
+ * The caller's own count is a floor, never a ceiling, so deliberately chunky shapes keep
+ * their intent: a 4-sided propeller blade stays a blade, not a rod.
+ */
+const BAKE_PX_PER_UNIT = 80;
+const TARGET_EDGE_PX = 3;
+const MAX_RADIAL = 24;
+
+export function radialFor(radius: number, requested: number): number {
+  const edgeUnits = TARGET_EDGE_PX / BAKE_PX_PER_UNIT;
+  const needed = Math.ceil((2 * Math.PI * Math.abs(radius)) / edgeUnits);
+  return Math.max(requested, Math.min(MAX_RADIAL, needed));
+}
+
+/**
  * A capped cylinder/tube between points a and b. Faces orient outward from the axis
  * midpoint. `r` is the radius, `sides` the radial resolution, capA/capB add end disks.
  */
@@ -66,6 +94,8 @@ export function frustum(
   rA: number, rB: number, sides: number, capA: boolean, capB: boolean,
   rot = 0,
 ): void {
+  // Widest end drives the resolution — a taper still reads round at its fat end.
+  sides = radialFor(Math.max(Math.abs(rA), Math.abs(rB)), sides);
   const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
   const len = Math.hypot(dx, dy, dz) || 1;
   const ux = dx / len, uy = dy / len, uz = dz / len;
@@ -94,6 +124,10 @@ export function dome(
   P: number[], I: number[],
   cx: number, cz: number, baseY: number, r: number, lat: number, lon: number,
 ): void {
+  lon = radialFor(r, lon);
+  // A quarter-circle of latitude against a full circle of longitude: keeps facets roughly
+  // square instead of long thin slivers when lon climbs.
+  lat = Math.max(lat, Math.round(lon / 4));
   const rings: number[][] = [];
   for (let i = 0; i < lat; i++) {
     const phi = (i / lat) * (Math.PI / 2);
@@ -141,6 +175,7 @@ export function ring(
   cx: number, cy: number, cz: number,
   R: number, r: number, seg: number, sides: number,
 ): void {
+  seg = radialFor(R, seg);
   const rows: number[][] = [];
   const centers: [number, number, number][] = [];
   for (let i = 0; i < seg; i++) {

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { applySurfaces, box, buildGeometry } from "../primitives";
+import { applySurfaces, box, buildGeometry, radialFor } from "../primitives";
 import { facet } from "../proceduralEngine";
 import { conformGeometry, makeContractMaterial } from "../conform";
 import { SURFACE_ORDER, surfaceIndex, finishSpec } from "../../contract/surfaces";
@@ -130,5 +130,32 @@ describe("surface groups through the conform pipeline", () => {
       expect(geometry.groups).toHaveLength(0);
       expect(Array.isArray(makeContractMaterial("hill", geometry))).toBe(false);
     }
+  });
+});
+
+describe("radialFor — detail proportional to on-screen size", () => {
+  it("leaves small features at the caller's count", () => {
+    // A 0.018-radius gun barrel is ~2px across in the game's 192px bake; subdividing it
+    // further is triangles nobody can see.
+    expect(radialFor(0.018, 6)).toBe(6);
+    expect(radialFor(0.01, 8)).toBe(8);
+    // The break-even for a caller asking 8 is a radius of ~0.048 — a nacelle sits right on
+    // it and picks up a side or two, which is the boundary behaving as intended.
+    expect(radialFor(0.05, 8)).toBe(9);
+  });
+
+  it("raises large features that would visibly polygonise", () => {
+    expect(radialFor(0.15, 8)).toBeGreaterThan(8);   // a radome
+    expect(radialFor(0.3, 8)).toBeGreaterThan(16);   // a broad drum
+  });
+
+  it("treats the caller's count as a floor, never a ceiling", () => {
+    // A 4-sided propeller blade must stay a blade, not become a rod.
+    expect(radialFor(0.001, 4)).toBe(4);
+    expect(radialFor(0.5, 32)).toBe(32);
+  });
+
+  it("caps so a very large radius can't run away", () => {
+    expect(radialFor(50, 6)).toBe(24);
   });
 });
