@@ -22,13 +22,16 @@ the ground.
   a seed, *or* generate from a text prompt via an AI provider (Meshy/Tripo). Both
   paths flow through the same conforming + validation pipeline.
 - **Contract enforcement** — automatic recenter, drop-to-ground, rescale into
-  hex units, triangle-budget decimation, and a matte PBR / palette material pass.
+  hex units, triangle-budget decimation, a baked ambient-occlusion pass, and a
+  per-part PBR / palette material pass.
   A live checklist turns green only when the asset is game-ready; mesh export is
   gated on it.
 - **Game-accurate preview** — an orthographic isometric viewport that mirrors the
   game's bake camera (looking from +Z at 35°, model spun by a field-rotation
-  slider with 15° snap), a `Y=0` ground plane, a hex guide ring at circumradius 1,
-  and a small "read check" overlay to judge legibility at in-game size.
+  slider with 15° snap) and its lighting (a sky/ground environment in the map
+  palette plus a key light — `src/viewport/bakeLighting.tsx`), a `Y=0` ground
+  plane, a hex guide ring at circumradius 1, and a small "read check" overlay to
+  judge legibility at in-game size.
 - **One-click export** — mesh artifacts export as self-contained binary `.glb`
   (embedded textures, applied transforms); effect artifacts export as a
   sprite-sheet PNG + a params JSON. Optionally writes straight into the game's
@@ -142,6 +145,41 @@ one hex circumradius, Y-up, `+Z` = north, base on `Y=0`):
 
 Anything you generate is conformed toward these targets and then validated against
 them.
+
+### Baked shading
+
+The last step of the conform pipeline ray-traces ambient occlusion and multiplies
+it into the mesh's vertex colors (`src/generation/ambientOcclusion.ts`). Because
+the game never draws these meshes live — it bakes each to a cached sprite through
+an offscreen camera — contact shading written into the `color` attribute is free
+at runtime, survives that bake, and needs no glTF extension: it is just albedo.
+
+Artifacts that stand on the field (terrain, buildings) also take occlusion from
+the `Y = 0` plane, which darkens the skirt where a wall meets the dirt. Craft
+(ships, ordnance) get self-occlusion only — their base-on-`Y = 0` anchoring is an
+editor convention, and they fly in the game.
+
+### Surface finishes
+
+One metalness/roughness pair per artifact is too coarse for anything assembled
+from parts, so a generator can assign a **finish** (`stone`, `timber`, `metal`,
+`brass`, `glass`, `fabric`) to a range of triangles — see
+`src/contract/surfaces.ts` and `applySurfaces()` in
+`src/generation/primitives.ts`. Ranges use the same `I.length` bracketing the
+generators already use for `paintRange`: colour says *brass*, the finish says
+*shade it like metal*.
+
+These become geometry groups, and `GLTFExporter` emits one glTF primitive per
+group, so a multi-finish mesh exports as ordinary glTF with no extension. A
+generator that declares no finishes gets a single material, as before.
+
+### Creasing
+
+Meshes are faceted by default. A generator built from turned forms — a shaft, a
+dome, a gun barrel, a hull — sets `smoothAngleDeg` on its `ArtifactDef` (65 is
+the standard value) and the conform pass averages normals across edges shallower
+than that, leaving box corners crisp. Terrain sets nothing: faceted rock is the
+style, not an oversight.
 
 ### Export → game
 

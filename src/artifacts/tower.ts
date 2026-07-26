@@ -200,6 +200,7 @@ export const towerDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "tower",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "tower",

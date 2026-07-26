@@ -120,6 +120,7 @@ export const broadcastTowerDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "broadcastTower",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "broadcast_tower",

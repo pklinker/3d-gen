@@ -119,6 +119,7 @@ export const mooringSpireDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "mooringSpire",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "mooring_spire",

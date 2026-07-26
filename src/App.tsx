@@ -91,8 +91,12 @@ export default function App() {
       const res = def.generate(seed, genParams);
       rawGeo = (res as { geometry: THREE.BufferGeometry }).geometry;
     }
-    const { geometry, report } = conformGeometry(rawGeo, contract, { fitToHex: hexMask });
-    const material = makeContractMaterial(contract);
+    const { geometry, report } = conformGeometry(rawGeo, contract, {
+      fitToHex: hexMask,
+      category: def.category,
+      smoothAngleDeg: def.smoothAngleDeg,
+    });
+    const material = makeContractMaterial(contract, geometry);
     const validation = validateMesh(geometry, contract);
     return { effect: null as GeneratedEffect | null, geometry, material, validation, report };
   }, [def, type, seed, params, aiGeometry, hexMask, ornament]);

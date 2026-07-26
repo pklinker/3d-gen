@@ -5,10 +5,12 @@ import * as THREE from "three";
 import { MAP_BG, ROTATION_STEP_DEG, READ_CHECK_PX } from "../contract/constants";
 import type { GeneratedEffect } from "../types";
 import { CAM_POS, IsoCamera } from "./isoCamera";
+import { BakeLighting } from "./bakeLighting";
 
 interface ViewportProps {
   meshGeometry: THREE.BufferGeometry | null;
-  meshMaterial: THREE.Material | null;
+  /** An array when the mesh carries surface groups — one material per finish slot. */
+  meshMaterial: THREE.Material | THREE.Material[] | null;
   effect: GeneratedEffect | null;
   fieldRotationDeg: number;
   snapRotation: boolean;
@@ -137,8 +139,7 @@ export default function Viewport(props: ViewportProps) {
         shadows
       >
         <IsoCamera />
-        <ambientLight intensity={0.75} />
-        <directionalLight position={[4, 6, 2]} intensity={1.1} castShadow />
+        <BakeLighting shadows />
         <Ground />
         {props.hexMask && <HexMaskFill />}
         <HexFootprint />
@@ -180,8 +181,7 @@ function ReadCheckOverlay(props: ViewportProps) {
         style={{ background: MAP_BG }}
       >
         <IsoCamera />
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[4, 6, 2]} intensity={1.0} />
+        <BakeLighting />
         <Content {...props} />
       </Canvas>
       <span>~{READ_CHECK_PX}px read</span>

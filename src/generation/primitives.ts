@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { surfaceIndex, type SurfaceFinish } from "../contract/surfaces";
 
 /**
  * Shared low-poly geometry primitives for the hand-built building generators
@@ -290,6 +291,53 @@ export function deckClutter(
       const h = 0.07 + rng() * 0.04;
       tube(P, I, [cx, baseY, z], [cx, baseY + h, z], r, 6, true, true);
     }
+  }
+}
+
+/**
+ * Assign surface finishes to triangle ranges, as geometry groups.
+ *
+ * The exact companion to `paintRange`: where that says "this run of triangles is brass
+ * *coloured*", this says "…and it is brass, so shade it like metal". Ranges use the same
+ * coordinates — positions in the index array, recorded with `I.length` before and after
+ * building a part — so a generator that already brackets its parts for painting can declare
+ * finishes by reusing those same numbers.
+ *
+ * Call once, on the faceted geometry, after painting. Ranges may arrive in any order and may
+ * overlap; later entries win, which matches how `paintRange` calls layer. Everything not
+ * covered by a range gets `fallback`, because a geometry carrying groups renders *only* its
+ * grouped ranges — partial coverage would silently drop triangles from the mesh.
+ *
+ * Passing no ranges leaves the geometry ungrouped, which is the signal to
+ * `makeContractMaterial` to hand back a single material.
+ */
+export function applySurfaces(
+  geo: THREE.BufferGeometry,
+  ranges: { start: number; end: number; finish: SurfaceFinish }[],
+  fallback: SurfaceFinish = "default",
+): void {
+  const count = geo.index ? geo.index.count : geo.getAttribute("position").count;
+  if (ranges.length === 0 || count === 0) return;
+
+  // Resolve to a per-triangle slot, so overlaps and gaps both fall out for free rather than
+  // needing interval arithmetic.
+  const tris = Math.floor(count / 3);
+  const slot = new Uint8Array(tris).fill(surfaceIndex(fallback));
+  for (const r of ranges) {
+    const lo = Math.max(0, Math.ceil(r.start / 3));
+    const hi = Math.min(tris, Math.floor(r.end / 3));
+    const s = surfaceIndex(r.finish);
+    for (let t = lo; t < hi; t++) slot[t] = s;
+  }
+
+  // Collapse equal neighbours into as few groups as possible — each group is a draw call
+  // here and a separate primitive in the exported .glb.
+  geo.clearGroups();
+  let runStart = 0;
+  for (let t = 1; t <= tris; t++) {
+    if (t < tris && slot[t] === slot[runStart]) continue;
+    geo.addGroup(runStart * 3, (t - runStart) * 3, slot[runStart]);
+    runStart = t;
   }
 }
 

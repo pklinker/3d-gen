@@ -2,7 +2,7 @@ import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { makeRng, facet, applyVerticalGradient, shade, weatherRange } from "../generation/proceduralEngine";
 import {
-  box, tube, frustum, outTri, outQuad, paintRange, buildGeometry,
+  box, tube, frustum, outTri, outQuad, paintRange, buildGeometry, applySurfaces,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.landingStage;
@@ -133,6 +133,12 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   weatherRange(geo, 0, metalStart, rng, 0.09); // seeded per-facet weathering on the stone tiers
   paintRange(geo, metalStart, metalEnd, "#8E97A2", 0.85); // platform + posts: pale steel
   paintRange(geo, steelStart, steelEnd, "#6F757C", 0.9); // gantry: darker iron
+
+  // Stone stepped pyramid under a metal landing platform and gantry.
+  applySurfaces(geo, [
+    { start: metalStart, end: metalEnd, finish: "metal" },
+    { start: steelStart, end: steelEnd, finish: "metal" },
+  ], "stone");
   weatherRange(geo, metalStart, steelEnd, rng, 0.07); // grime/scuffing on the metalwork
   return { kind: "mesh", geometry: geo, color: C.color };
 }

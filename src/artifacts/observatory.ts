@@ -2,7 +2,7 @@ import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
-  tube, frustum, ring, dome, paintRange, buildGeometry,
+  tube, frustum, ring, dome, paintRange, buildGeometry, applySurfaces,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.observatory; // height 2.3, driven by the stretchable middle column
@@ -79,6 +79,13 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   applyVerticalGradient(geo, shade(C.color, 0.62), shade(C.color, 1.1));
   weatherRange(geo, 0, brassStart, rng, 0.09); // seeded per-facet weathering on the stone shaft
   paintRange(geo, brassStart, brassEnd, "#C9A24B", 0.9); // brass
+
+  // The stone shaft is the bulk; the telescope is the one polished thing on the model.
+  // Splitting them lets the shaft go properly matte — the contract's single 0.25 metalness
+  // was a compromise between the two and flattered neither.
+  applySurfaces(geo, [
+    { start: brassStart, end: brassEnd, finish: "brass" },
+  ], "stone");
   weatherRange(geo, brassStart, brassEnd, rng, 0.07); // tarnish variation on the brass instrument
   return { kind: "mesh", geometry: geo, color: C.color };
 }
@@ -89,6 +96,7 @@ export const observatoryDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "observatory",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "observatory",

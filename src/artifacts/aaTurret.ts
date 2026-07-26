@@ -78,6 +78,7 @@ export const aaTurretDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "aaTurret",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "aa_turret",

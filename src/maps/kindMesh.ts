@@ -7,7 +7,8 @@ import type { TerrainKindDoc } from "./types";
 
 export interface KindMesh {
   geometry: THREE.BufferGeometry;
-  material: THREE.Material;
+  /** An array when the kind's mesh carries surface groups — one material per finish slot. */
+  material: THREE.Material | THREE.Material[];
 }
 
 /** Build the preview mesh for a kind's bound generator — an existing artifact
@@ -42,7 +43,11 @@ export function buildKindMesh(kind: TerrainKindDoc): KindMesh | null {
   const rawGeometry = (res as { geometry: THREE.BufferGeometry }).geometry;
 
   const contract = def.contract ?? "hill";
-  const { geometry } = conformGeometry(rawGeometry, contract, { fitToHex: true });
-  const material = makeContractMaterial(contract);
+  const { geometry } = conformGeometry(rawGeometry, contract, {
+    fitToHex: true,
+    category: def.category,
+    smoothAngleDeg: def.smoothAngleDeg,
+  });
+  const material = makeContractMaterial(contract, geometry);
   return { geometry, material };
 }

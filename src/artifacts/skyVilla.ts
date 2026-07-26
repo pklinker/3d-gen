@@ -2,7 +2,7 @@ import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
-  tube, frustum, ring, dome, paintRange, buildGeometry,
+  tube, frustum, ring, dome, paintRange, buildGeometry, applySurfaces,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.skyVilla;
@@ -94,6 +94,11 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   weatherRange(geo, 0, awnStart, rng, 0.07);
   weatherRange(geo, awnEnd, I.length, rng, 0.07);
   paintRange(geo, awnStart, awnEnd, awningColor, 0.85); // parasol awnings: warm fabric
+
+  // Ivory plaster tiers; the sweeping awnings are the only cloth on the model.
+  applySurfaces(geo, [
+    { start: awnStart, end: awnEnd, finish: "fabric" },
+  ], "stone");
   return { kind: "mesh", geometry: geo, color: C.color };
 }
 
@@ -103,6 +108,7 @@ export const skyVillaDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "skyVilla",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "sky_villa",

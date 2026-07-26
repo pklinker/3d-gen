@@ -2,7 +2,7 @@ import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
-  box, tube, frustum, outTri, outQuad, paintRange, deckClutter, buildGeometry,
+  box, tube, frustum, outTri, outQuad, paintRange, deckClutter, buildGeometry, applySurfaces,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.fighter;
@@ -205,6 +205,16 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   paintRange(geo, flagStart, flagEnd, flagColor, 0.95); // pennant cloth
   paintRange(geo, metalStart, metalEnd, "#8A8F96", 0.9); // propeller + vanes: steel
   paintRange(geo, clutterStart, clutterEnd, "#7A5A34", 0.95); // deck cargo: crates + barrels
+
+  // The same ranges as surface finishes; the hull is the unlisted `timber` bulk.
+  applySurfaces(geo, [
+    { start: brassStart,   end: brassEnd,   finish: "brass" },
+    { start: cabinStart,   end: cabinEnd,   finish: "timber" },
+    { start: mastStart,    end: mastEnd,    finish: "metal" },
+    { start: flagStart,    end: flagEnd,    finish: "fabric" },
+    { start: metalStart,   end: metalEnd,   finish: "metal" },
+    { start: clutterStart, end: clutterEnd, finish: "timber" },
+  ], "timber");
   return { kind: "mesh", geometry: geo, color: hullColor };
 }
 
@@ -220,6 +230,7 @@ export const fighterDef: ArtifactDef = {
   category: "ships",
   output: "mesh",
   contract: "fighter",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "fighter",

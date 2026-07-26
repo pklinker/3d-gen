@@ -1,7 +1,7 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { makeRng, facet, applyVerticalGradient, shade, weatherRange } from "../generation/proceduralEngine";
-import { frustum, tube, dome, paintRange, buildGeometry } from "../generation/primitives";
+import { frustum, tube, dome, paintRange, buildGeometry, applySurfaces } from "../generation/primitives";
 import { buildTurretBase } from "./turretBase";
 
 const C = MESH_CONTRACTS.radarDome;
@@ -71,6 +71,14 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   paintRange(geo, domeStart, domeEnd, domeColor, 0.92); // radome + apex nub
   weatherRange(geo, domeStart, domeEnd, rng, 0.05); // composite shells weather less than bare steel
   paintRange(geo, seamStart, seamEnd, "#9CA3A8", 0.6); // equator seam: a touch darker than the shell
+
+  // Steel turret base under a composite radome. The radome keeps the contract's own
+  // dielectric pair (`default`) — that value was chosen for the shell specifically — while
+  // the base below it gets to be actual metal.
+  applySurfaces(geo, [
+    { start: domeStart, end: domeEnd, finish: "default" },
+    { start: seamStart, end: seamEnd, finish: "default" },
+  ], "metal");
   return { kind: "mesh", geometry: geo, color: armorColor };
 }
 
@@ -80,6 +88,7 @@ export const radarDomeDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "radarDome",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "radar_dome",

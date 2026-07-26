@@ -2,7 +2,7 @@ import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
-  box, tube, frustum, outTri, outQuad, paintRange, buildGeometry,
+  box, tube, frustum, outTri, outQuad, paintRange, buildGeometry, applySurfaces,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.attack;
@@ -176,6 +176,17 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   paintRange(geo, engineStart, engineEnd, "#B8893C", 0.9); // pylons + nacelles: brass
   paintRange(geo, propStart, propEnd, "#8A8F96", 0.9); // propellers: steel
   paintRange(geo, finStart, finEnd, "#B8893C", 0.85); // tail fins: brass trim
+
+  // The same ranges as surface finishes; the fuselage is the unlisted `timber` bulk. The
+  // canopy is the one place any artifact uses `glass` — it is the only genuinely glazed
+  // part in the fleet, which is what keeps it reading as glass rather than as trim.
+  applySurfaces(geo, [
+    { start: glassStart,  end: glassEnd,  finish: "glass" },
+    { start: gunStart,    end: gunEnd,    finish: "metal" },
+    { start: engineStart, end: engineEnd, finish: "brass" },
+    { start: propStart,   end: propEnd,   finish: "metal" },
+    { start: finStart,    end: finEnd,    finish: "brass" },
+  ], "timber");
   return { kind: "mesh", geometry: geo, color: hullColor };
 }
 
@@ -185,6 +196,7 @@ export const attackDef: ArtifactDef = {
   category: "ships",
   output: "mesh",
   contract: "attack",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "attack",

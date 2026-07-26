@@ -74,6 +74,7 @@ export const missileDef: ArtifactDef = {
   category: "ordnance",
   output: "mesh",
   contract: "missile",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "missile",

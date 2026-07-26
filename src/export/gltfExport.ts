@@ -6,10 +6,15 @@ import { GLTFExporter } from "three-stdlib";
  *  - binary (one file), textures/buffers embedded
  *  - transforms baked (we pass a Mesh whose matrix is identity; geometry already
  *    conformed), Y-up (three default), no animations/cameras/lights.
+ *
+ * A material array pairs with the geometry's surface groups: GLTFExporter walks the groups
+ * and emits one glTF primitive per group, each referencing its own material, so a mesh with
+ * brass fittings on a timber hull exports as ordinary glTF with no extension. Array entries
+ * no group references are never reached, so unused finish slots cost nothing in the file.
  */
 export function exportGlb(
   geometry: THREE.BufferGeometry,
-  material: THREE.Material,
+  material: THREE.Material | THREE.Material[],
 ): Promise<ArrayBuffer> {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.set(0, 0, 0);

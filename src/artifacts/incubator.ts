@@ -2,7 +2,7 @@ import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
-  tube, frustum, dome, paintRange, buildGeometry,
+  tube, frustum, dome, paintRange, buildGeometry, applySurfaces,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.incubator;
@@ -98,6 +98,12 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   weatherRange(geo, 0, ribStart, rng, 0.08); // seeded per-facet weathering on the sandstone shell
   paintRange(geo, ribStart, ribEnd, "#6F6A5C", 0.85); // ribs: dark iron-stone
   paintRange(geo, ventStart, ventEnd, "#7E8890", 0.85); // vent grille: metal
+
+  // Reinforced sandstone shell; only the ribs and the vent grille are ironwork.
+  applySurfaces(geo, [
+    { start: ribStart,  end: ribEnd,  finish: "metal" },
+    { start: ventStart, end: ventEnd, finish: "metal" },
+  ], "stone");
   return { kind: "mesh", geometry: geo, color: C.color };
 }
 
@@ -107,6 +113,7 @@ export const incubatorDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "incubator",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "incubator",

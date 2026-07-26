@@ -56,6 +56,15 @@ export interface ArtifactDef {
   promptSeed?: string;
   /** Optional subcategory id — enables a third level in the artifact tree. */
   subcategory?: string;
+  /**
+   * Widest edge, in degrees, that the conform pass still smooths — everything sharper stays
+   * faceted. Set it on generators built from turned forms (shafts, domes, barrels, hulls),
+   * where hard-shading a 6- or 8-sided lathe reads as a lumpy stick at in-game size. 65 is
+   * the useful general value: above every turned surface the primitives produce, below a box
+   * corner. Omit to keep the artifact fully faceted — which is what terrain wants, since the
+   * faceted rock *is* the style.
+   */
+  smoothAngleDeg?: number;
 }
 
 export function defaultParams(specs: ParamSpec[]): ParamValues {

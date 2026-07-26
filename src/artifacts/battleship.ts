@@ -3,6 +3,7 @@ import { MESH_CONTRACTS } from "../contract/constants";
 import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
   box, dome, tube, frustum, outTri, outQuad, paintRange, deckClutter, buildGeometry,
+  applySurfaces,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.battleship;
@@ -293,6 +294,22 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   paintRange(geo, centerEngineStart, centerEngineEnd, "#8A8F96", 0.90); // center engine: steel
   paintRange(geo, clutterStart, clutterEnd, "#7A5A34", 0.95); // deck cargo: crates + barrels
   paintRange(geo, antennaStart, antennaEnd, "#7E8890", 0.85); // bow antenna: pale metal
+
+  // Same ranges again, as surface finishes — colour says brass, this says shade it like
+  // metal. Everything unlisted falls back to `timber`: the hull and deck are the bulk of
+  // the model and the only thing built before brassStart.
+  applySurfaces(geo, [
+    { start: brassStart,        end: brassEnd,        finish: "brass" },
+    { start: cabinStart,        end: cabinEnd,        finish: "timber" },
+    { start: turretStart,       end: turretEnd,       finish: "metal" },
+    { start: sideTurretStart,   end: sideTurretEnd,   finish: "metal" },
+    { start: mastStart,         end: mastEnd,         finish: "metal" },
+    { start: flagStart,         end: flagEnd,         finish: "fabric" },
+    { start: metalStart,        end: metalEnd,        finish: "metal" },
+    { start: centerEngineStart, end: centerEngineEnd, finish: "metal" },
+    { start: clutterStart,      end: clutterEnd,      finish: "timber" },
+    { start: antennaStart,      end: antennaEnd,      finish: "metal" },
+  ], "timber");
   return { kind: "mesh", geometry: geo, color: hullColor };
 }
 
@@ -302,6 +319,7 @@ export const battleshipDef: ArtifactDef = {
   category: "ships",
   output: "mesh",
   contract: "battleship",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "battleship",

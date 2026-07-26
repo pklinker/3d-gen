@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { toCreasedNormals } from "three-stdlib";
 
 /** Mulberry32 — small deterministic PRNG so a (seed, params) pair is reproducible. */
 export function makeRng(seed: number): () => number {
@@ -275,6 +276,41 @@ export function facet(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   const out = geo.index ? geo.toNonIndexed() : geo;
   out.computeVertexNormals();
   return out;
+}
+
+/**
+ * Soften normals across shallow edges while leaving sharp ones faceted, in place.
+ *
+ * `facet()` hard-shades everything, which is right for rock and architecture and wrong for
+ * anything turned on a lathe: a 6-sided cylinder shaft, a dome, a gun barrel, a torpedo
+ * body. At the ~256px the game blits, a hard-shaded 6-sided tube reads as a lumpy stick
+ * rather than a cylinder. Smoothing only *below* a threshold keeps both: adjacent facets on
+ * a turned surface sit ~45–60° apart and get averaged, while a box corner sits at 90° and
+ * stays crisp.
+ *
+ * `angleDeg` is the widest edge that still gets smoothed. 65° is the useful general value —
+ * above every turned surface the primitives produce (`sides >= 6`), below a box corner.
+ *
+ * Normals only: positions, vertex colors and surface groups are all left alone, so this is
+ * safe to run after painting and after `applySurfaces`.
+ */
+export function creaseNormals(geo: THREE.BufferGeometry, angleDeg: number): void {
+  if (geo.index || angleDeg <= 0) return;
+
+  // toCreasedNormals welds vertices through a fixed hash that truncates at 1/100 of a unit
+  // (`~~(v * 100)`). That constant assumes model-scale geometry; ours is measured in hex
+  // circumradii, where a whole ship is under 2 units and a rigging tube has an 0.008 radius —
+  // so at native scale a thin part's entire cross-section can collapse into one hash bucket
+  // and average normals that belong to opposite sides of it.
+  //
+  // Scaling up before the call buys back the precision. 1024 is chosen for being a power of
+  // two: multiplying and dividing by it only changes the float exponent, so the positions
+  // that come back out are bit-identical to the ones that went in. Normals are unaffected by
+  // uniform scale, so the result is exactly what the call would produce at a sane scale.
+  const S = 1024;
+  geo.scale(S, S, S);
+  toCreasedNormals(geo, THREE.MathUtils.degToRad(angleDeg));
+  geo.scale(1 / S, 1 / S, 1 / S);
 }
 
 /** Slightly darken a hex color (for gradient bottoms). */

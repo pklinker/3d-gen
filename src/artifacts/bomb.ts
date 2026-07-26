@@ -78,6 +78,7 @@ export const bombDef: ArtifactDef = {
   category: "ordnance",
   output: "mesh",
   contract: "bomb",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "bomb",

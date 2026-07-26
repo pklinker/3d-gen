@@ -181,6 +181,7 @@ export const atmosphereDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "atmosphere",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "atmosphere",

@@ -104,6 +104,7 @@ export const radarDishDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "radarDish",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "radar_dish",

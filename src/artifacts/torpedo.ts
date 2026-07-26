@@ -93,6 +93,7 @@ export const torpedoDef: ArtifactDef = {
   category: "ordnance",
   output: "mesh",
   contract: "torpedo",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "torpedo",

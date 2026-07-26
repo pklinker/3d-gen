@@ -19,7 +19,7 @@ interface Props {
   seed: number;
   params: ParamValues;
   geometry: THREE.BufferGeometry | null;
-  material: THREE.Material | null;
+  material: THREE.Material | THREE.Material[] | null;
   canExportMesh: boolean;
   source: string;
   effect: GeneratedEffect | null;

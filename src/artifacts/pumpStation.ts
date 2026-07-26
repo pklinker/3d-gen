@@ -2,7 +2,7 @@ import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { facet, applyVerticalGradient, shade, makeRng, weatherRange } from "../generation/proceduralEngine";
 import {
-  outQuad, tube, dome, frustum, paintRange, buildGeometry,
+  outQuad, tube, dome, frustum, paintRange, buildGeometry, applySurfaces,
 } from "../generation/primitives";
 
 const C = MESH_CONTRACTS.pumpStation;
@@ -138,6 +138,13 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   paintRange(geo, pipeStart, pipeEnd, "#6E7B73", 0.9); // conduits: patina metal
   weatherRange(geo, pipeStart, pipeEnd, rng, 0.1); // patina blotching on the conduits
   paintRange(geo, orbStart, orbEnd, "#7FC8E0", 0.8); // glass orbs
+
+  // Canal stone wrapped in metal conduits, with glazed orbs.
+  applySurfaces(geo, [
+    { start: ribStart,  end: ribEnd,  finish: "metal" },
+    { start: pipeStart, end: pipeEnd, finish: "metal" },
+    { start: orbStart,  end: orbEnd,  finish: "glass" },
+  ], "stone");
   return { kind: "mesh", geometry: geo, color: C.color };
 }
 
@@ -147,6 +154,7 @@ export const pumpStationDef: ArtifactDef = {
   category: "buildings",
   output: "mesh",
   contract: "pumpStation",
+  smoothAngleDeg: 65,
   params: params as unknown as ArtifactDef["params"],
   generate,
   fileStem: "pump_station",
