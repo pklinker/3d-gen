@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Instances, Instance, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { MAP_BG } from "../contract/constants";
@@ -9,6 +9,7 @@ import { axialToWorld, boardBounds, cellKey } from "./hexGrid";
 import { hexAtPointer, ndcOf } from "./picking";
 import { buildFillGeometry, buildGridLinePositions, deployBandCells } from "./gridGeometry";
 import { buildKindMesh } from "./kindMesh";
+import { PAN_KEYS, arrowPanStep } from "./panKeys";
 import type { KindMesh } from "./kindMesh";
 import type { MapCell, TerrainKindDoc } from "./types";
 
@@ -152,6 +153,65 @@ function PaintInput({
       window.removeEventListener("pointerup", up);
     };
   }, [camera, gl, cols, rows]);
+
+  return null;
+}
+
+/** Arrow keys pan the board: it drags the camera AND the orbit target by the
+ *  same ground-plane offset, which slides the view without touching the iso
+ *  angle or the zoom (right-drag pan does the same thing through OrbitControls).
+ *
+ *  Held keys are accumulated and applied per frame rather than per keydown, so
+ *  holding an arrow glides at a steady rate instead of stuttering on the OS's
+ *  key-repeat delay.
+ *
+ *  Moving the target imperatively survives re-renders: MapViewport passes
+ *  OrbitControls a `target` array that only changes when the board is resized,
+ *  and R3F compares array props element-wise — so an unrelated re-render (a
+ *  paint stroke, a zoom) won't snap the pan back to the board's centroid. */
+function ArrowKeyPan() {
+  const { camera, controls } = useThree();
+  const held = useRef(new Set<string>());
+  const step = useRef(new THREE.Vector3()).current;
+
+  useEffect(() => {
+    // The left panel's number inputs (cols/rows/deploy) use arrows to step their
+    // value — panning the board out from under a typing user would be worse than
+    // useless, so keystrokes aimed at a field are left alone.
+    const isTyping = (t: EventTarget | null) =>
+      t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
+
+    const down = (e: KeyboardEvent) => {
+      if (!PAN_KEYS.has(e.key) || isTyping(e.target)) return;
+      e.preventDefault(); // arrows would otherwise scroll the editor's panes
+      held.current.add(e.key);
+    };
+    const up = (e: KeyboardEvent) => held.current.delete(e.key);
+    // A key released while the window is unfocused never fires keyup here, which
+    // would leave the board gliding forever — drop everything on focus loss.
+    const clear = () => held.current.clear();
+
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", clear);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", clear);
+    };
+  }, []);
+
+  useFrame((_, dt) => {
+    if (held.current.size === 0 || !controls) return;
+    const orbit = controls as unknown as { target: THREE.Vector3; update: () => void };
+    arrowPanStep(held.current, camera.matrix, (camera as THREE.OrthographicCamera).zoom, dt, step);
+    if (step.lengthSq() === 0) return;
+    // Moving the camera and the orbit target by the same offset slides the view
+    // without changing the angle or the distance OrbitControls maintains.
+    camera.position.add(step);
+    orbit.target.add(step);
+    orbit.update();
+  });
 
   return null;
 }
@@ -307,6 +367,9 @@ export default function MapViewport({
         <GridLines cols={cols} rows={rows} />
         <PaintedCells cols={cols} rows={rows} cells={cells} kinds={kinds} />
         <PaintInput cols={cols} rows={rows} onPaintDown={onPaintDown} onPaintMove={onPaintMove} onPaintUp={onPaintUp} />
+        {/* Drives the same camera/target pair as OrbitControls below, which
+            publishes itself to state.controls via makeDefault. */}
+        <ArrowKeyPan />
         <OrbitControls
           makeDefault
           enablePan
@@ -322,7 +385,7 @@ export default function MapViewport({
         />
       </Canvas>
       <div className="viewport-hint">
-        drag = paint/erase · ⌥-drag = orbit · right-drag = pan · scroll = zoom · {Math.round(zoom)}
+        drag = paint/erase · ⌥-drag = orbit · right-drag / arrows = pan · scroll = zoom · {Math.round(zoom)}
       </div>
     </div>
   );
