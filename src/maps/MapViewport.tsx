@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Instances, Instance, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { MAP_BG } from "../contract/constants";
 import { LOOK_Y, camPosForTarget, IsoCamera } from "../viewport/isoCamera";
 import { BakeLighting } from "../viewport/bakeLighting";
-import { axialToWorld, boardBounds, cellKey, worldToAxial } from "./hexGrid";
+import { axialToWorld, boardBounds, cellKey } from "./hexGrid";
+import { hexAtPointer, ndcOf } from "./picking";
 import { buildFillGeometry, buildGridLinePositions, deployBandCells } from "./gridGeometry";
 import { buildKindMesh } from "./kindMesh";
 import type { KindMesh } from "./kindMesh";
@@ -87,15 +88,19 @@ function GroundPlane({ cols, rows }: { cols: number; rows: number }) {
   );
 }
 
-/** Invisible plane raised above every possible painted mesh (tallest kind is
- *  well under a couple world-units) so it's always the nearest hit along the
- *  camera ray, regardless of what's painted at a hex — otherwise a tall
- *  building model would occlude the ground plane in the raycast and you
- *  couldn't click that hex again. Owns all hex paint input: pointer-down
- *  starts a stroke, pointer-move (while the left button is held) continues
- *  it, pointer-up ends it. Alt-drags are ignored here — that's the orbit
- *  gesture (§ MapViewport's <OrbitControls mouseButtons>). */
-function PaintPlane({
+/** Owns all hex paint input: pointer-down starts a stroke, pointer-move
+ *  (while the left button is held) continues it, pointer-up ends it.
+ *  Alt-drags are ignored — that's the orbit gesture (§ MapViewport's
+ *  <OrbitControls mouseButtons>).
+ *
+ *  Listens on the canvas and intersects the ground analytically (picking.ts)
+ *  rather than raycasting an invisible pick mesh. The mesh version silently
+ *  lost the bottom ~6 rows of the board: with this rig's negative ortho
+ *  `near`, three.js starts the pick ray at the plane through the camera,
+ *  which sinks below the mesh's own height partway down the screen — putting
+ *  the mesh BEHIND the ray origin, where `raycaster.near = 0` discards it.
+ *  No mesh, no near plane, no dead band, and no parallax to correct for. */
+function PaintInput({
   cols,
   rows,
   onPaintDown,
@@ -108,44 +113,47 @@ function PaintPlane({
   onPaintMove: (q: number, r: number) => void;
   onPaintUp: () => void;
 }) {
-  const box = useMemo(() => boardBounds(cols, rows), [cols, rows]);
+  const { camera, gl } = useThree();
+  // MapEditor rebuilds these handlers on every render; holding them in a ref
+  // keeps the listeners attached once per camera/board instead of churning.
+  const cb = useRef({ onPaintDown, onPaintMove, onPaintUp });
+  cb.current = { onPaintDown, onPaintMove, onPaintUp };
 
-  // The pointer ray hits THIS plane at y=3, so e.point is parallax-shifted
-  // toward the camera relative to the board (≈ 3/tan(35°) world units at the
-  // default elevation — several hexes' worth). The hex the user is pointing
-  // at lives where the ray meets the GROUND (y=0), so extend the ray there
-  // instead of using the hit point. Returns null when the ray is parallel to
-  // the ground (camera orbited to the horizon).
-  function hexAtGround(ray: THREE.Ray): { q: number; r: number } | null {
-    if (Math.abs(ray.direction.y) < 1e-6) return null;
-    const t = -ray.origin.y / ray.direction.y;
-    return worldToAxial(ray.origin.x + t * ray.direction.x, ray.origin.z + t * ray.direction.z);
-  }
+  useEffect(() => {
+    const el = gl.domElement;
 
-  return (
-    <mesh
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[box.cx, 3, box.cz]}
-      onPointerDown={(e) => {
-        if (e.button !== 0 || e.altKey) return; // alt-drag = orbit, not paint
-        e.stopPropagation();
-        const hex = hexAtGround(e.ray);
-        if (hex && hex.q >= 0 && hex.q < cols && hex.r >= 0 && hex.r < rows) onPaintDown(hex.q, hex.r);
-      }}
-      onPointerMove={(e) => {
-        if ((e.buttons & 1) === 0 || e.altKey) return; // left button not held, or orbiting
-        const hex = hexAtGround(e.ray);
-        if (hex && hex.q >= 0 && hex.q < cols && hex.r >= 0 && hex.r < rows) onPaintMove(hex.q, hex.r);
-      }}
-      onPointerUp={(e) => {
-        if (e.button !== 0) return;
-        onPaintUp();
-      }}
-    >
-      <planeGeometry args={[box.width, box.depth]} />
-      <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
-    </mesh>
-  );
+    function hexAt(e: PointerEvent): { q: number; r: number } | null {
+      const [x, y] = ndcOf(e.clientX, e.clientY, el.getBoundingClientRect());
+      const hex = hexAtPointer(camera, x, y);
+      if (!hex || hex.q < 0 || hex.q >= cols || hex.r < 0 || hex.r >= rows) return null;
+      return hex;
+    }
+    const down = (e: PointerEvent) => {
+      if (e.button !== 0 || e.altKey) return; // alt-drag = orbit, not paint
+      const hex = hexAt(e);
+      if (hex) cb.current.onPaintDown(hex.q, hex.r);
+    };
+    const move = (e: PointerEvent) => {
+      if ((e.buttons & 1) === 0 || e.altKey) return; // left button not held, or orbiting
+      const hex = hexAt(e);
+      if (hex) cb.current.onPaintMove(hex.q, hex.r);
+    };
+    // Up listens on the window so a stroke released off the canvas still ends.
+    const up = (e: PointerEvent) => {
+      if (e.button === 0) cb.current.onPaintUp();
+    };
+
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    return () => {
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+  }, [camera, gl, cols, rows]);
+
+  return null;
 }
 
 /** Painted terrain: one drei <Instances> block per model-backed kind (its
@@ -298,7 +306,7 @@ export default function MapViewport({
         <DeployBand cols={cols} rows={rows} deployZoneCols={deployZoneCols} />
         <GridLines cols={cols} rows={rows} />
         <PaintedCells cols={cols} rows={rows} cells={cells} kinds={kinds} />
-        <PaintPlane cols={cols} rows={rows} onPaintDown={onPaintDown} onPaintMove={onPaintMove} onPaintUp={onPaintUp} />
+        <PaintInput cols={cols} rows={rows} onPaintDown={onPaintDown} onPaintMove={onPaintMove} onPaintUp={onPaintUp} />
         <OrbitControls
           makeDefault
           enablePan
