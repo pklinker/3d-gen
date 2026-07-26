@@ -3,6 +3,7 @@ import { SimplifyModifier } from "three-stdlib";
 import { MESH_CONTRACTS, HEX_FLAT_TO_FLAT, type ContractKey } from "../contract/constants";
 import { applyVerticalGradient, creaseNormals, facet, shade } from "./proceduralEngine";
 import { bakeAmbientOcclusion, sitsOnGround } from "./ambientOcclusion";
+import { applySurfaceDetail } from "./surfaceDetail";
 import { SURFACE_ORDER, finishSpec, type SurfaceFinish } from "../contract/surfaces";
 import type { ArtifactCategory } from "../types";
 
@@ -26,6 +27,7 @@ export interface ConformReport {
  *  5) Decimate if over the triangle budget.
  *  6) Crease normals, softening shallow edges.
  *  7) Bake ambient occlusion into the vertex colors.
+ *  8) Multiply in albedo detail (edge wear, mottle, grime).
  * Returns the conformed geometry (a clone) and a report of what changed.
  */
 export function conformGeometry(
@@ -37,6 +39,8 @@ export function conformGeometry(
     ao?: boolean;
     /** Widest edge still smoothed, in degrees. Omit/0 to keep the mesh fully faceted. */
     smoothAngleDeg?: number;
+    /** Set false to skip the albedo detail pass (edge wear / mottle / grime). */
+    surfaceDetail?: boolean;
   } = {},
 ): { geometry: THREE.BufferGeometry; report: ConformReport } {
   const C = MESH_CONTRACTS[contract];
@@ -125,6 +129,11 @@ export function conformGeometry(
     });
     aoMs = performance.now() - t0;
   }
+
+  // 8: albedo detail — edge wear, mottle and grime, multiplied into the same colors. After
+  // AO on purpose: AO darkens the concave creases, edge wear lightens the convex ones, and
+  // running wear first would let AO scale down the highlight it had just added.
+  if (opts.surfaceDetail !== false) applySurfaceDetail(geo);
 
   return {
     geometry: geo,

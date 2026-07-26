@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { MeshBVH } from "three-mesh-bvh";
+import { hashCoords, siteNormal, weldSites } from "./weld";
 import type { ArtifactCategory } from "../types";
 
 /**
@@ -85,32 +86,6 @@ function radicalInverse2(i: number): number {
 }
 
 /**
- * Integer hash (FNV-1a mix over three quantized coordinates), used to give each sample point
- * its own sample-set rotation. Deliberately integer-only: a float hash built on Math.sin —
- * the usual shader idiom — would ride on an implementation-defined transcendental, and two
- * browsers disagreeing in the last ulp is enough to shift the phase visibly. Whole-number
- * inputs and imul keep this bit-identical everywhere, which is what the rest of the
- * generation pipeline promises.
- */
-function hashCoords(x: number, y: number, z: number): number {
-  let h = 2166136261;
-  h = Math.imul(h ^ (x | 0), 16777619);
-  h = Math.imul(h ^ (y | 0), 16777619);
-  h = Math.imul(h ^ (z | 0), 16777619);
-  h ^= h >>> 13;
-  return (h >>> 0) / 4294967296;
-}
-
-/** One welded position: its averaged normal and every duplicate vertex sitting on it. */
-interface Site {
-  x: number; y: number; z: number;
-  /** Quantized position — the weld key, reused as the hash input for sample rotation. */
-  qx: number; qy: number; qz: number;
-  nx: number; ny: number; nz: number;
-  verts: number[];
-}
-
-/**
  * Multiply baked ambient occlusion into `geo`'s vertex colors, in place.
  *
  * Expects the faceted (non-indexed) geometry that `facet()` produces, already carrying a
@@ -124,55 +99,17 @@ export function bakeAmbientOcclusion(geo: THREE.BufferGeometry, opts: AoOptions 
   if (!col || !pos || geo.index) return;
   if (o.intensity <= 0 || o.samples <= 0) return;
 
-  geo.computeBoundingBox();
-  const bb = geo.boundingBox!;
-  const diag = bb.min.distanceTo(bb.max) || 1;
+  // Weld duplicate corners once; every per-vertex pass in the pipeline shares this step.
+  const { sites, diag } = weldSites(geo);
+  if (sites.length === 0) return;
   const maxDist = diag * o.radius;
   // Lift the ray origin off its own surface so the face it starts on can't occlude it.
   const eps = diag * 1e-4;
 
-  // --- weld: group duplicate corner vertices by position, averaging their face normals ---
-  // Facet corners are bit-identical between adjacent triangles (they come from the same
-  // source vertex before toNonIndexed split them), so a quantized key welds them exactly.
-  const keyScale = 1e5 / diag;
-  const sites = new Map<string, Site>();
-
-  function addCorner(vi: number, nx: number, ny: number, nz: number): void {
-    const px = pos!.getX(vi), py = pos!.getY(vi), pz = pos!.getZ(vi);
-    const qx = Math.round(px * keyScale);
-    const qy = Math.round(py * keyScale);
-    const qz = Math.round(pz * keyScale);
-    const key = `${qx},${qy},${qz}`;
-    let s = sites.get(key);
-    if (!s) {
-      s = { x: px, y: py, z: pz, qx, qy, qz, nx: 0, ny: 0, nz: 0, verts: [] };
-      sites.set(key, s);
-    }
-    s.nx += nx; s.ny += ny; s.nz += nz;
-    s.verts.push(vi);
-  }
-
-  const triCount = pos.count / 3;
-  for (let t = 0; t < triCount; t++) {
-    const a = t * 3, b = a + 1, c = a + 2;
-    const ax = pos.getX(a), ay = pos.getY(a), az = pos.getZ(a);
-    // Unnormalized face normal — its length is twice the triangle area, which weights big
-    // facets more heavily in the averaged normal. That is what we want: a sliver facet
-    // should not swing the hemisphere orientation of the corner it touches.
-    const ux = pos.getX(b) - ax, uy = pos.getY(b) - ay, uz = pos.getZ(b) - az;
-    const vx = pos.getX(c) - ax, vy = pos.getY(c) - ay, vz = pos.getZ(c) - az;
-    const nx = uy * vz - uz * vy;
-    const ny = uz * vx - ux * vz;
-    const nz = ux * vy - uy * vx;
-    addCorner(a, nx, ny, nz);
-    addCorner(b, nx, ny, nz);
-    addCorner(c, nx, ny, nz);
-  }
-
   // Sample count is settled here, once the welded site count is known.
   const samples = Math.max(
     MIN_SAMPLES,
-    Math.min(o.samples, Math.floor(o.rayBudget / Math.max(1, sites.size))),
+    Math.min(o.samples, Math.floor(o.rayBudget / Math.max(1, sites.length))),
   );
 
   // --- BVH over a throwaway geometry ---
@@ -185,12 +122,8 @@ export function bakeAmbientOcclusion(geo: THREE.BufferGeometry, opts: AoOptions 
   const bvh = new MeshBVH(bvhGeo);
 
   const ray = new THREE.Ray();
-  for (const site of sites.values()) {
-    // Averaged normal; a fully degenerate corner (zero-area facets only) falls back to up.
-    let nx = site.nx, ny = site.ny, nz = site.nz;
-    const nlen = Math.hypot(nx, ny, nz);
-    if (nlen < 1e-12) { nx = 0; ny = 1; nz = 0; }
-    else { nx /= nlen; ny /= nlen; nz /= nlen; }
+  for (const site of sites) {
+    const [nx, ny, nz] = siteNormal(site);
 
     // Orthonormal basis around the normal: t = up × n, s = n × t, with `up` picked off-axis
     // so the cross product can't collapse on a near-vertical normal.

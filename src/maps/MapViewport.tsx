@@ -4,6 +4,7 @@ import { Instances, Instance, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { MAP_BG } from "../contract/constants";
 import { LOOK_Y, camPosForTarget, IsoCamera } from "../viewport/isoCamera";
+import { BakeLighting } from "../viewport/bakeLighting";
 import { axialToWorld, boardBounds, cellKey, worldToAxial } from "./hexGrid";
 import { buildFillGeometry, buildGridLinePositions, deployBandCells } from "./gridGeometry";
 import { buildKindMesh } from "./kindMesh";
@@ -288,8 +289,11 @@ export default function MapViewport({
         style={{ background: "#1c1a16" }}
       >
         <IsoCamera lookX={bounds.cx} lookY={LOOK_Y} lookZ={bounds.cz} />
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[4, 6, 2]} intensity={1.1} />
+        {/* Same rig as the Artifacts viewport and the game's bake — see bakeLighting.tsx.
+            It replaces a flat ambient plus a key light on a mirrored direction, which lit
+            painted terrain differently from both the single-artifact preview and the sprite
+            the game actually bakes. */}
+        <BakeLighting />
         <GroundPlane cols={cols} rows={rows} />
         <DeployBand cols={cols} rows={rows} deployZoneCols={deployZoneCols} />
         <GridLines cols={cols} rows={rows} />

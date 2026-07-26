@@ -1,7 +1,7 @@
 import type { ArtifactDef, GeneratedMesh, ParamValues } from "../types";
 import { MESH_CONTRACTS } from "../contract/constants";
 import { makeRng, facet, applyVerticalGradient, shade, weatherRange } from "../generation/proceduralEngine";
-import { frustum, tube, paintRange, buildGeometry } from "../generation/primitives";
+import { bowl, tube, paintRange, buildGeometry, applySurfaces } from "../generation/primitives";
 import { buildTurretBase } from "./turretBase";
 
 const C = MESH_CONTRACTS.radarDish;
@@ -61,14 +61,16 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   tube(P, I, [0, axleY, -yokeHalfWidth], [0, axleY, yokeHalfWidth], postR * 0.7, 6, true, true);
   const yokeEnd = I.length;
 
-  // Dish: a hollow cone — capped narrow back, open wide rim — oriented along the elevation
-  // direction so it reads as a concave bowl rather than a solid cone.
+  // Dish: a walled bowl — closed narrow back, open wide rim — oriented along the elevation
+  // direction. Both faces are built (see `bowl`): a single open cone would have vanished
+  // entirely whenever the camera came round to the side the dish points at, since every face
+  // of a cone aims away from its own concavity and gets culled from in front.
   const dir: [number, number] = [Math.cos(elevation), Math.sin(elevation)];
   const dishDepth = dishRadius * 0.32;
   const pivot: [number, number, number] = [0, axleY, 0];
   const rimCenter: [number, number, number] = [pivot[0] + dir[0] * dishDepth, pivot[1] + dir[1] * dishDepth, 0];
   const dishStart = I.length;
-  frustum(P, I, pivot, rimCenter, 0.022, dishRadius, 14, true, false);
+  bowl(P, I, pivot, rimCenter, 0.022, dishRadius, 14, 0.012);
 
   // Feed horn boom: slung from the rim's low edge (perpendicular to the tilt direction) out
   // to a focal point in front of the dish.
@@ -95,6 +97,12 @@ function generate(seed: number, p: ParamValues): GeneratedMesh {
   weatherRange(geo, yokeStart, yokeEnd, rng, 0.08);
   paintRange(geo, dishStart, dishEnd, dishColor, 0.92); // dish + feed boom
   weatherRange(geo, dishStart, dishEnd, rng, 0.07);
+
+  // The reflector is spun steel, not painted plate — the whole point of a dish is that its
+  // pan throws light (and signal) back at you. Contract PBR is a compromise across the whole
+  // artifact and reads as chalky paint on that surface, so the dish and its boom get real
+  // metal while the armored base keeps the contract's own pair.
+  applySurfaces(geo, [{ start: dishStart, end: dishEnd, finish: "metal" }], "default");
   return { kind: "mesh", geometry: geo, color: armorColor };
 }
 

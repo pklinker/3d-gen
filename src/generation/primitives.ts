@@ -85,6 +85,32 @@ export function tube(
 }
 
 /**
+ * Orthonormal frame for the axis a→b: the unit axis `u` plus two unit vectors `p`/`q`
+ * spanning the cross-section plane. Shared by every lathed primitive so their rings agree
+ * on where angle 0 sits — two surfaces built around the same axis can then be stitched
+ * ring-to-ring by index.
+ */
+function axisFrame(
+  a: [number, number, number], b: [number, number, number],
+): { u: [number, number, number]; p: [number, number, number]; q: [number, number, number] } {
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  const len = Math.hypot(dx, dy, dz) || 1;
+  const ux = dx / len, uy = dy / len, uz = dz / len;
+  let px = uy, py = -ux, pz = 0;
+  if (Math.hypot(px, py, pz) < 1e-4) { px = 1; py = 0; pz = 0; }
+  const pl = Math.hypot(px, py, pz); px /= pl; py /= pl; pz /= pl;
+  const qx = uy * pz - uz * py, qy = uz * px - ux * pz, qz = ux * py - uy * px;
+  return { u: [ux, uy, uz], p: [px, py, pz], q: [qx, qy, qz] };
+}
+
+/** Reverse the winding — and so the facing — of every triangle appended since index `start`. */
+export function flipRange(I: number[], start: number): void {
+  for (let i = start; i + 2 < I.length; i += 3) {
+    const t = I[i + 1]; I[i + 1] = I[i + 2]; I[i + 2] = t;
+  }
+}
+
+/**
  * A capped cone/frustum between points a and b with independent end radii (rA at a,
  * rB at b). Used for tapering shafts, spire fins, stepped tiers and finials.
  */
@@ -96,13 +122,7 @@ export function frustum(
 ): void {
   // Widest end drives the resolution — a taper still reads round at its fat end.
   sides = radialFor(Math.max(Math.abs(rA), Math.abs(rB)), sides);
-  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
-  const len = Math.hypot(dx, dy, dz) || 1;
-  const ux = dx / len, uy = dy / len, uz = dz / len;
-  let px = uy, py = -ux, pz = 0;
-  if (Math.hypot(px, py, pz) < 1e-4) { px = 1; py = 0; pz = 0; }
-  const pl = Math.hypot(px, py, pz); px /= pl; py /= pl; pz /= pl;
-  const qx = uy * pz - uz * py, qy = uz * px - ux * pz, qz = ux * py - uy * px;
+  const { p: [px, py, pz], q: [qx, qy, qz] } = axisFrame(a, b);
   const cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, cz = (a[2] + b[2]) / 2;
   const ringA: number[] = [], ringB: number[] = [];
   for (let s = 0; s < sides; s++) {
@@ -117,6 +137,78 @@ export function frustum(
   }
   if (capA) for (let s = 1; s < sides - 1; s++) outTri(P, I, ringA[0], ringA[s], ringA[s + 1], cx, cy, cz);
   if (capB) for (let s = 1; s < sides - 1; s++) outTri(P, I, ringB[0], ringB[s], ringB[s + 1], cx, cy, cz);
+}
+
+/**
+ * A hollow dish: a shell of thickness `wall` between a narrow closed back at `a` and a wide
+ * open rim at `b`, built as *two* lathed surfaces — a convex outer back and a concave inner
+ * pan whose faces wind inward — closed off by a flat annular lip at the rim.
+ *
+ * The obvious construction, one open cone, is invisible from the front. Every face of a cone
+ * points away from its axis, so the moment the camera comes round to the side the dish is
+ * aimed at, backface culling removes the entire reflector and leaves its feed boom hanging in
+ * mid-air. Giving the pan its own inward-wound surface fixes that from every angle without
+ * making the material double-sided, which would flip lighting on the rest of the mesh's
+ * (correctly single-sided) parts and cost a shadow pass besides.
+ *
+ * `rBack`/`rRim` are the outer radii at each end; the inner surface is inset by `wall`, so a
+ * dish reads as spun plate with a visible edge thickness rather than as zero-thickness foil.
+ */
+export function bowl(
+  P: number[], I: number[],
+  a: [number, number, number], b: [number, number, number],
+  rBack: number, rRim: number, sides: number, wall: number,
+): void {
+  sides = radialFor(Math.max(Math.abs(rBack), Math.abs(rRim)), sides);
+  const { u, p, q } = axisFrame(a, b);
+  const cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, cz = (a[2] + b[2]) / 2;
+  // Inner back sits one wall forward along the axis, so the closed end has thickness too.
+  const inA: [number, number, number] = [a[0] + u[0] * wall, a[1] + u[1] * wall, a[2] + u[2] * wall];
+  const inRBack = Math.max(rBack - wall, rBack * 0.35);
+  const inRRim = Math.max(rRim - wall, rRim * 0.5);
+
+  const ringAt = (
+    c: [number, number, number], r: number,
+  ): number[] => {
+    const row: number[] = [];
+    for (let s = 0; s < sides; s++) {
+      const ang = (s / sides) * Math.PI * 2;
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      row.push(vert(P,
+        c[0] + (p[0] * ca + q[0] * sa) * r,
+        c[1] + (p[1] * ca + q[1] * sa) * r,
+        c[2] + (p[2] * ca + q[2] * sa) * r));
+    }
+    return row;
+  };
+  const outBack = ringAt(a, rBack);
+  const outRim = ringAt(b, rRim);
+  const inRim = ringAt(b, inRRim);
+  const inBack = ringAt(inA, inRBack);
+
+  // Outer shell + its closed back, facing away from the axis as usual.
+  for (let s = 0; s < sides; s++) {
+    const sn = (s + 1) % sides;
+    outQuad(P, I, outBack[s], outRim[s], outRim[sn], outBack[sn], cx, cy, cz);
+  }
+  for (let s = 1; s < sides - 1; s++) outTri(P, I, outBack[0], outBack[s], outBack[s + 1], cx, cy, cz);
+
+  // Rim lip: an annulus in the plane at b. Its centroid sits a half-length ahead of the axis
+  // midpoint, so orienting away from that reference points it out of the mouth for free.
+  for (let s = 0; s < sides; s++) {
+    const sn = (s + 1) % sides;
+    outQuad(P, I, outRim[s], outRim[sn], inRim[sn], inRim[s], cx, cy, cz);
+  }
+
+  // Inner pan + its floor, built outward-facing and then flipped in one go — the concave
+  // side of a surface is exactly its outward side reversed.
+  const innerStart = I.length;
+  for (let s = 0; s < sides; s++) {
+    const sn = (s + 1) % sides;
+    outQuad(P, I, inBack[s], inRim[s], inRim[sn], inBack[sn], cx, cy, cz);
+  }
+  for (let s = 1; s < sides - 1; s++) outTri(P, I, inBack[0], inBack[s], inBack[s + 1], cx, cy, cz);
+  flipRange(I, innerStart);
 }
 
 /** A faceted hemisphere (dome) with its equator on `baseY`, centered at (cx, cz). */

@@ -159,6 +159,13 @@ the `Y = 0` plane, which darkens the skirt where a wall meets the dirt. Craft
 (ships, ordnance) get self-occlusion only — their base-on-`Y = 0` anchoring is an
 editor convention, and they fly in the game.
 
+A second pass (`src/generation/surfaceDetail.ts`) multiplies in albedo detail over
+the same vertex weld: **edge wear** lightening convex corners, low-frequency
+**mottle** breaking up flat areas, and a **grime** bias making up-facing surfaces
+read lighter than undersides. It costs no triangles, and at the size the game
+blits it moves an order of magnitude more pixels than adding geometry does — see
+`TODO_REALISM.md` §4–5 for the measurements.
+
 ### Surface finishes
 
 One metalness/roughness pair per artifact is too coarse for anything assembled
