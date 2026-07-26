@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import { Instances, Instance, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { MAP_BG } from "../contract/constants";
@@ -223,25 +223,6 @@ function fitZoom(width: number, depth: number): number {
   return Math.max(4, Math.min(400, VIEWPORT_PX / Math.max(width, depth, 1)));
 }
 
-/** Redraws the on-demand (`frameloop="demand"`) canvas whenever the scene's
- *  content changes. Without this, the map editor would rely on R3F's shared
- *  render loop being alive — but that loop halts itself when no root is
- *  requesting frames, and this static scene has no `useFrame` to keep it
- *  running. A paint would then mutate the scene graph with nothing calling
- *  `invalidate()`, so the new cell wouldn't draw until an unrelated camera
- *  change (zoom/orbit) restarted the loop. OrbitControls already invalidates
- *  on camera moves; this covers every content change (`deps`). Two frames are
- *  requested because drei's <Instances> positions its matrices in a useFrame
- *  that runs the frame AFTER the instance list changes. */
-function RedrawOnChange({ deps }: { deps: unknown[] }) {
-  const invalidate = useThree((s) => s.invalidate);
-  useEffect(() => {
-    invalidate(2);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  return null;
-}
-
 export default function MapViewport({
   cols,
   rows,
@@ -287,14 +268,26 @@ export default function MapViewport({
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {/* Renders continuously (R3F's default frameloop), like Viewport.tsx.
+          This canvas used to run `frameloop="demand"` with a helper that called
+          invalidate() on every content change — but on-demand made the board's
+          visibility depend on a handful of one-shot animation frames actually
+          being delivered at mount. R3F drives every canvas from ONE shared rAF
+          loop guarded by a global "is the loop running" flag, and that loop is
+          being torn down by the Artifacts canvas at the exact moment this one
+          mounts (switching tabs unmounts it). If the requested frames are
+          dropped or deferred — a backgrounded/occluded tab throttles rAF, and
+          the teardown race can swallow them outright — this scene is static:
+          no useFrame, no animation, so nothing ever asks for another frame and
+          the viewport stays empty until an unrelated camera change restarts the
+          loop. Rendering every frame costs ~6 draw calls and removes the whole
+          failure mode. */}
       <Canvas
         orthographic
-        frameloop="demand"
         camera={{ zoom, position: camPosForTarget(bounds.cx, LOOK_Y, bounds.cz), near: -200, far: 200 }}
         style={{ background: "#1c1a16" }}
       >
         <IsoCamera lookX={bounds.cx} lookY={LOOK_Y} lookZ={bounds.cz} />
-        <RedrawOnChange deps={[cols, rows, deployZoneCols, cells, kinds, bounds.cx, bounds.cz]} />
         <ambientLight intensity={0.8} />
         <directionalLight position={[4, 6, 2]} intensity={1.1} />
         <GroundPlane cols={cols} rows={rows} />
