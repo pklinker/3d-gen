@@ -9,7 +9,8 @@ import { axialToWorld, boardBounds, cellKey } from "./hexGrid";
 import { hexAtPointer, ndcOf } from "./picking";
 import { buildFillGeometry, buildGridLinePositions, deployBandCells } from "./gridGeometry";
 import { buildKindMesh } from "./kindMesh";
-import { PAN_KEYS, arrowPanStep } from "./panKeys";
+import { PAN_KEYS, arrowPanStep, boardClampOffset, clampPanStep } from "./panKeys";
+import type { BoardBounds } from "./hexGrid";
 import type { KindMesh } from "./kindMesh";
 import type { MapCell, TerrainKindDoc } from "./types";
 
@@ -163,13 +164,15 @@ function PaintInput({
  *
  *  Held keys are accumulated and applied per frame rather than per keydown, so
  *  holding an arrow glides at a steady rate instead of stuttering on the OS's
- *  key-repeat delay.
+ *  key-repeat delay. The travel is bounded by the board itself (clampPanStep) —
+ *  holding an arrow coasts to a stop at the edge instead of leaving the user
+ *  staring at empty ground with no way back but a board resize.
  *
  *  Moving the target imperatively survives re-renders: MapViewport passes
  *  OrbitControls a `target` array that only changes when the board is resized,
  *  and R3F compares array props element-wise — so an unrelated re-render (a
  *  paint stroke, a zoom) won't snap the pan back to the board's centroid. */
-function ArrowKeyPan() {
+function ArrowKeyPan({ bounds }: { bounds: BoardBounds }) {
   const { camera, controls } = useThree();
   const held = useRef(new Set<string>());
   const step = useRef(new THREE.Vector3()).current;
@@ -204,8 +207,9 @@ function ArrowKeyPan() {
   useFrame((_, dt) => {
     if (held.current.size === 0 || !controls) return;
     const orbit = controls as unknown as { target: THREE.Vector3; update: () => void };
-    arrowPanStep(held.current, camera.matrix, (camera as THREE.OrthographicCamera).zoom, dt, step);
-    if (step.lengthSq() === 0) return;
+    arrowPanStep(held.current, camera.quaternion, (camera as THREE.OrthographicCamera).zoom, dt, step);
+    clampPanStep(step, orbit.target.x, orbit.target.z, bounds);
+    if (step.lengthSq() === 0) return; // already against the board's edge
     // Moving the camera and the orbit target by the same offset slides the view
     // without changing the angle or the distance OrbitControls maintains.
     camera.position.add(step);
@@ -311,6 +315,26 @@ export default function MapViewport({
     setZoom(fitZoom(bounds.width, bounds.depth));
   }, [bounds.width, bounds.depth]);
 
+  // Right-drag pan runs inside OrbitControls, so there's no step of ours to trim
+  // the way the arrow keys are trimmed — the move has already landed by the time
+  // the controls report it. Correcting it on every change is equivalent: the
+  // target is hauled back to the board's edge within the same tick, before the
+  // frame is drawn, so a drag simply stops there and resumes on the way back.
+  const clampFix = useRef(new THREE.Vector3()).current;
+  function onControlsChange(e?: { target?: unknown }) {
+    const orbit = e?.target as { target: THREE.Vector3; object: THREE.OrthographicCamera } | undefined;
+    if (!orbit) return;
+    const fix = boardClampOffset(orbit.target, bounds, clampFix);
+    if (fix.lengthSq() > 0) {
+      // Camera moves with the target, so the correction is a pure slide — the
+      // controls' own spherical state (angle, distance) is left untouched, and
+      // nothing here calls update(), so this can't re-enter through its change event.
+      orbit.target.add(fix);
+      orbit.object.position.add(fix);
+    }
+    setZoom(orbit.object.zoom);
+  }
+
   // Alt(⌥)+left-drag orbits; plain left-drag paints. The left button can't be
   // BOTH paint and orbit, and orbit can't live only on the middle button — a
   // Mac trackpad/Magic Mouse has no middle button, which would make the iso
@@ -369,10 +393,19 @@ export default function MapViewport({
         <PaintInput cols={cols} rows={rows} onPaintDown={onPaintDown} onPaintMove={onPaintMove} onPaintUp={onPaintUp} />
         {/* Drives the same camera/target pair as OrbitControls below, which
             publishes itself to state.controls via makeDefault. */}
-        <ArrowKeyPan />
+        <ArrowKeyPan bounds={bounds} />
         <OrbitControls
           makeDefault
           enablePan
+          // Pan along the BOARD, not the screen. Three's default screen-space
+          // panning slides the target along the camera's up axis, which on a
+          // 35°-tilted rig is mostly world Y — so a vertical right-drag lifted
+          // the look point off the ground entirely and sailed the board out of
+          // frame in a direction no ground-plane bound can catch. False makes
+          // the vertical drag axis `up x right`, the same ground-plane vector
+          // arrowPanStep uses, which keeps the target on the board's plane and
+          // leaves onControlsChange's box the only limit that matters.
+          screenSpacePanning={false}
           mouseButtons={{
             LEFT: altHeld ? THREE.MOUSE.ROTATE : undefined,
             MIDDLE: THREE.MOUSE.ROTATE,
@@ -381,7 +414,7 @@ export default function MapViewport({
           target={[bounds.cx, LOOK_Y, bounds.cz]}
           minZoom={4}
           maxZoom={400}
-          onChange={(e) => e && setZoom((e.target.object as THREE.OrthographicCamera).zoom)}
+          onChange={onControlsChange}
         />
       </Canvas>
       <div className="viewport-hint">
