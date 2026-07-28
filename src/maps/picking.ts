@@ -31,11 +31,19 @@ const DIR = new THREE.Vector3();
  * would need the direction taken from the unprojected point back to the eye instead.
  */
 export function hexAtPointer(camera: THREE.Camera, ndcX: number, ndcY: number): Axial | null {
+  const g = groundAtNdc(camera, ndcX, ndcY);
+  return g && worldToAxial(g.x, g.z);
+}
+
+/** Where the ray through normalized-device coords (ndcX, ndcY) meets the ground
+ *  plane, or null when the view is edge-on. The primitive hexAtPointer rounds to
+ *  a hex and viewBounds.ts corners a viewport with. */
+export function groundAtNdc(camera: THREE.Camera, ndcX: number, ndcY: number): { x: number; z: number } | null {
   ORIGIN.set(ndcX, ndcY, 0).unproject(camera);
   camera.getWorldDirection(DIR);
   if (Math.abs(DIR.y) < 1e-6) return null;
   const t = -ORIGIN.y / DIR.y;
-  return worldToAxial(ORIGIN.x + t * DIR.x, ORIGIN.z + t * DIR.z);
+  return { x: ORIGIN.x + t * DIR.x, z: ORIGIN.z + t * DIR.z };
 }
 
 /** Normalized-device coords of a pointer event within `rect`. */

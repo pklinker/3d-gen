@@ -20,6 +20,39 @@ const BLANK_MAP: MapDoc = {
   cells: [],
 };
 
+/** Panel title plus its collapse toggle — or, once collapsed, just the toggle
+ *  and a vertical title down the rail, so a folded panel still says what it is.
+ *  The chevron always points the way the panel is about to move. */
+function PanelHead({
+  title,
+  side,
+  open,
+  onToggle,
+}: {
+  title: string;
+  side: "left" | "right";
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const collapseTowards = side === "left" ? "‹" : "›";
+  const expandTowards = side === "left" ? "›" : "‹";
+  return (
+    <div className="panel-head">
+      {open && (side === "left" ? <h1>{title}</h1> : <h2>{title}</h2>)}
+      <button
+        className="panel-toggle"
+        onClick={onToggle}
+        aria-expanded={open}
+        title={`${open ? "Collapse" : "Expand"} the ${title} panel`}
+        aria-label={`${open ? "Collapse" : "Expand"} the ${title} panel`}
+      >
+        {open ? collapseTowards : expandTowards}
+      </button>
+      {!open && <span className="panel-rail-title">{title}</span>}
+    </div>
+  );
+}
+
 export default function MapEditor() {
   const catalog = useCatalogData();
   const [kinds, setKinds] = useState<TerrainKindDoc[]>(catalog.kinds);
@@ -41,6 +74,11 @@ export default function MapEditor() {
   const [mapStatus, setMapStatus] = useState<string | null>(null);
   const [kindStatus, setKindStatus] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<ArtifactCategory>>(new Set());
+  // Side panels fold down to a rail so the board can have the whole window. The
+  // rail (rather than hiding the panel outright) is what keeps the way back
+  // visible — a panel with no handle left on screen is a panel you can't reopen.
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
 
   function toggleSection(category: ArtifactCategory) {
     setCollapsedSections((prev) => {
@@ -131,60 +169,63 @@ export default function MapEditor() {
 
   return (
     <>
-      <aside className="panel left">
-        <h1>Map Editor</h1>
+      <aside className={`panel left${leftOpen ? "" : " collapsed"}`}>
+        <PanelHead title="Map Editor" side="left" open={leftOpen} onToggle={() => setLeftOpen((v) => !v)} />
+        {leftOpen && (
+          <>
+          <div className="param-row">
+            <label>Load existing map</label>
+            <select value={selectedMapId} onChange={(e) => loadMap(e.target.value)}>
+              <option value="">New Map</option>
+              {catalog.maps.map((m) => (
+                <option key={m.id} value={m.id}>{m.displayName || m.id}</option>
+              ))}
+            </select>
+          </div>
 
-        <div className="param-row">
-          <label>Load existing map</label>
-          <select value={selectedMapId} onChange={(e) => loadMap(e.target.value)}>
-            <option value="">New Map</option>
-            {catalog.maps.map((m) => (
-              <option key={m.id} value={m.id}>{m.displayName || m.id}</option>
-            ))}
-          </select>
-        </div>
+          <h2>Board</h2>
+          <div className="param-row">
+            <label>Id (maps.json entry id)</label>
+            <input value={doc.id} onChange={(e) => updateDoc("id", e.target.value)} placeholder="crystal_flats" />
+          </div>
+          <div className="param-row">
+            <label>Display name</label>
+            <input value={doc.displayName} onChange={(e) => updateDoc("displayName", e.target.value)} placeholder="Crystal Flats" />
+          </div>
+          <div className="param-row">
+            <label>Columns</label>
+            <input type="number" min={1} max={96} value={doc.cols} onChange={(e) => updateDoc("cols", Math.max(1, Number(e.target.value)))} />
+          </div>
+          <div className="param-row">
+            <label>Rows</label>
+            <input type="number" min={1} max={96} value={doc.rows} onChange={(e) => updateDoc("rows", Math.max(1, Number(e.target.value)))} />
+          </div>
+          <div className="param-row">
+            <label>Deploy zone columns (per-side band width)</label>
+            <input
+              type="number"
+              min={0}
+              max={doc.cols}
+              value={doc.deployZoneCols}
+              onChange={(e) => updateDoc("deployZoneCols", Number(e.target.value))}
+            />
+          </div>
+          <div className="param-row">
+            <label>Deploy min separation (hexes)</label>
+            <input
+              type="number"
+              min={0}
+              value={doc.deployMinSeparation}
+              onChange={(e) => updateDoc("deployMinSeparation", Number(e.target.value))}
+            />
+          </div>
 
-        <h2>Board</h2>
-        <div className="param-row">
-          <label>Id (maps.json entry id)</label>
-          <input value={doc.id} onChange={(e) => updateDoc("id", e.target.value)} placeholder="crystal_flats" />
-        </div>
-        <div className="param-row">
-          <label>Display name</label>
-          <input value={doc.displayName} onChange={(e) => updateDoc("displayName", e.target.value)} placeholder="Crystal Flats" />
-        </div>
-        <div className="param-row">
-          <label>Columns</label>
-          <input type="number" min={1} max={96} value={doc.cols} onChange={(e) => updateDoc("cols", Math.max(1, Number(e.target.value)))} />
-        </div>
-        <div className="param-row">
-          <label>Rows</label>
-          <input type="number" min={1} max={96} value={doc.rows} onChange={(e) => updateDoc("rows", Math.max(1, Number(e.target.value)))} />
-        </div>
-        <div className="param-row">
-          <label>Deploy zone columns (per-side band width)</label>
-          <input
-            type="number"
-            min={0}
-            max={doc.cols}
-            value={doc.deployZoneCols}
-            onChange={(e) => updateDoc("deployZoneCols", Number(e.target.value))}
-          />
-        </div>
-        <div className="param-row">
-          <label>Deploy min separation (hexes)</label>
-          <input
-            type="number"
-            min={0}
-            value={doc.deployMinSeparation}
-            onChange={(e) => updateDoc("deployMinSeparation", Number(e.target.value))}
-          />
-        </div>
-
-        <div className="presets">
-          <button onClick={exportMap}>Export Map</button>
-        </div>
-        {mapStatus && <div className="status">{mapStatus}</div>}
+          <div className="presets">
+            <button onClick={exportMap}>Export Map</button>
+          </div>
+          {mapStatus && <div className="status">{mapStatus}</div>}
+          </>
+        )}
       </aside>
 
       <main className="viewport-wrap">
@@ -200,54 +241,58 @@ export default function MapEditor() {
         />
       </main>
 
-      <aside className="panel right">
-        <h2>Palette</h2>
-        <div className="palette-list">
-          <button
-            className={`palette-item${brush === null ? " active" : ""}`}
-            onClick={() => setBrush(null)}
-          >
-            Eraser
-          </button>
-          {groupPalette(kinds).map((section) => {
-            const isOpen = !collapsedSections.has(section.category);
-            return (
-              <div key={section.category} className="palette-section">
-                <button
-                  className={`palette-section-header${isOpen ? " open" : ""}`}
-                  onClick={() => toggleSection(section.category)}
-                  aria-expanded={isOpen}
-                >
-                  <span className="tree-chevron">▶</span>
-                  {section.label}
-                </button>
-                {isOpen &&
-                  section.kinds.map((k) => (
-                    <div key={k.id} className={`palette-item${brush === k.id ? " active" : ""}`}>
-                      <button className="palette-swatch-btn" onClick={() => setBrush(k.id)}>
-                        <span
-                          className="palette-swatch"
-                          style={{ background: `rgba(${Math.round(k.color[0] * 255)}, ${Math.round(k.color[1] * 255)}, ${Math.round(k.color[2] * 255)}, ${k.color[3]})` }}
-                        />
-                        {k.displayName}
-                      </button>
-                      <button className="palette-export-btn" title="Export this kind to the game" onClick={() => exportKind(k)}>
-                        ↑
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            );
-          })}
-        </div>
-        {kindStatus && <div className="status">{kindStatus}</div>}
-
-        {formOpen ? (
-          <KindForm onSave={addKind} onCancel={() => setFormOpen(false)} />
-        ) : (
-          <div className="presets">
-            <button onClick={() => setFormOpen(true)}>+ New Kind</button>
+      <aside className={`panel right${rightOpen ? "" : " collapsed"}`}>
+        <PanelHead title="Palette" side="right" open={rightOpen} onToggle={() => setRightOpen((v) => !v)} />
+        {rightOpen && (
+          <>
+          <div className="palette-list">
+            <button
+              className={`palette-item${brush === null ? " active" : ""}`}
+              onClick={() => setBrush(null)}
+            >
+              Eraser
+            </button>
+            {groupPalette(kinds).map((section) => {
+              const isOpen = !collapsedSections.has(section.category);
+              return (
+                <div key={section.category} className="palette-section">
+                  <button
+                    className={`palette-section-header${isOpen ? " open" : ""}`}
+                    onClick={() => toggleSection(section.category)}
+                    aria-expanded={isOpen}
+                  >
+                    <span className="tree-chevron">▶</span>
+                    {section.label}
+                  </button>
+                  {isOpen &&
+                    section.kinds.map((k) => (
+                      <div key={k.id} className={`palette-item${brush === k.id ? " active" : ""}`}>
+                        <button className="palette-swatch-btn" onClick={() => setBrush(k.id)}>
+                          <span
+                            className="palette-swatch"
+                            style={{ background: `rgba(${Math.round(k.color[0] * 255)}, ${Math.round(k.color[1] * 255)}, ${Math.round(k.color[2] * 255)}, ${k.color[3]})` }}
+                          />
+                          {k.displayName}
+                        </button>
+                        <button className="palette-export-btn" title="Export this kind to the game" onClick={() => exportKind(k)}>
+                          ↑
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              );
+            })}
           </div>
+          {kindStatus && <div className="status">{kindStatus}</div>}
+
+          {formOpen ? (
+            <KindForm onSave={addKind} onCancel={() => setFormOpen(false)} />
+          ) : (
+            <div className="presets">
+              <button onClick={() => setFormOpen(true)}>+ New Kind</button>
+            </div>
+          )}
+          </>
         )}
       </aside>
     </>

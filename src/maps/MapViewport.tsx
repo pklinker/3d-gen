@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Instances, Instance, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -10,6 +10,7 @@ import { hexAtPointer, ndcOf } from "./picking";
 import { buildFillGeometry, buildGridLinePositions, deployBandCells } from "./gridGeometry";
 import { buildKindMesh } from "./kindMesh";
 import { PAN_KEYS, arrowPanStep, boardClampOffset, clampPanStep } from "./panKeys";
+import { containZoom, coverZoom, panLimits } from "./viewBounds";
 import type { BoardBounds } from "./hexGrid";
 import type { KindMesh } from "./kindMesh";
 import type { MapCell, TerrainKindDoc } from "./types";
@@ -164,9 +165,9 @@ function PaintInput({
  *
  *  Held keys are accumulated and applied per frame rather than per keydown, so
  *  holding an arrow glides at a steady rate instead of stuttering on the OS's
- *  key-repeat delay. The travel is bounded by the board itself (clampPanStep) —
- *  holding an arrow coasts to a stop at the edge instead of leaving the user
- *  staring at empty ground with no way back but a board resize.
+ *  key-repeat delay. The travel is fenced by panLimits — holding an arrow coasts
+ *  to a stop the moment the board's edge reaches the edge of the screen, so the
+ *  board never pulls away from the frame and leaves dead space behind it.
  *
  *  Moving the target imperatively survives re-renders: MapViewport passes
  *  OrbitControls a `target` array that only changes when the board is resized,
@@ -208,8 +209,9 @@ function ArrowKeyPan({ bounds }: { bounds: BoardBounds }) {
     if (held.current.size === 0 || !controls) return;
     const orbit = controls as unknown as { target: THREE.Vector3; update: () => void };
     arrowPanStep(held.current, camera.quaternion, (camera as THREE.OrthographicCamera).zoom, dt, step);
-    clampPanStep(step, orbit.target.x, orbit.target.z, bounds);
-    if (step.lengthSq() === 0) return; // already against the board's edge
+    const limits = panLimits(camera, orbit.target, bounds);
+    if (limits) clampPanStep(step, orbit.target.x, orbit.target.z, limits);
+    if (step.lengthSq() === 0) return; // the board's edge is already at the screen's
     // Moving the camera and the orbit target by the same offset slides the view
     // without changing the angle or the distance OrbitControls maintains.
     camera.position.add(step);
@@ -285,15 +287,121 @@ function PaintedCells({ cols, rows, cells, kinds }: { cols: number; rows: number
   );
 }
 
-// Orthographic zoom is pixels-per-world-unit at zoom=1 (R3F sizes the default
-// frustum to the canvas's own pixel dimensions), so fitting a `span`-unit-wide
-// board into roughly VIEWPORT_PX of visible canvas needs zoom = VIEWPORT_PX /
-// span. VIEWPORT_PX is an estimate (this component doesn't measure its actual
-// DOM size) tuned for the three-pane layout's center column — good enough to
-// get the WHOLE board in view on load; the user can still scroll-zoom further.
-const VIEWPORT_PX = 650;
-function fitZoom(width: number, depth: number): number {
-  return Math.max(4, Math.min(400, VIEWPORT_PX / Math.max(width, depth, 1)));
+/** The bits of OrbitControls this file drives directly. */
+type OrbitLike = { target: THREE.Vector3; object: THREE.OrthographicCamera; update: () => void };
+
+/** OrbitControls, framed and fenced by the canvas it is actually drawing into.
+ *
+ *  This lives inside <Canvas> because every number it needs comes from the real
+ *  canvas size, which only useThree can see. The old code guessed a fixed 650px
+ *  viewport and never measured: on a wide window — and especially with the side
+ *  panels collapsed — the board was drawn at roughly half the size it could be,
+ *  ringed by dead space on all four sides. It also ignored the rig's tilt, which
+ *  squashes the board's depth to sin(35 deg) of its world size on screen, so
+ *  even a correct width fit left bands above and below.
+ *
+ *  So the board OPENS at coverZoom, filling the canvas, and panLimits keeps it
+ *  filled: the target can never be positioned to pull an edge into frame.
+ *
+ *  Zooming out is the deliberate exception. The floor is containZoom — the whole
+ *  board on screen at once — because "show me everything" is worth the bars it
+ *  costs, while below that the board would only shrink away from the frame on
+ *  every side. Nothing else needs special handling: past the cover zoom the pan
+ *  limits collapse to centred, so a zoomed-out board sits in the middle with
+ *  even margins and stays there. */
+function BoardControls({
+  bounds,
+  altHeld,
+  onZoom,
+}: {
+  bounds: BoardBounds;
+  altHeld: boolean;
+  onZoom: (zoom: number) => void;
+}) {
+  const { camera, size, controls } = useThree();
+  const fill = useMemo(() => coverZoom(bounds, size.width, size.height), [bounds, size.width, size.height]);
+  const minZoom = useMemo(() => containZoom(bounds, size.width, size.height), [bounds, size.width, size.height]);
+  const clampFix = useRef(new THREE.Vector3()).current;
+
+  // Frame the board on mount and whenever it is resized; on a mere canvas resize
+  // only enforce the new floor, so collapsing a side panel doesn't throw away a
+  // zoom the user chose — including one they zoomed out to. Layout effect, not
+  // effect: the correction lands before the browser paints, so there's no flash
+  // of the wrong framing.
+  const framed = useRef(""); // board identity the current framing was chosen for
+  useLayoutEffect(() => {
+    const cam = camera as THREE.OrthographicCamera;
+    const board = `${bounds.width}x${bounds.depth}`;
+    cam.zoom = framed.current === board ? Math.max(cam.zoom, minZoom) : fill;
+    framed.current = board;
+    cam.updateProjectionMatrix();
+    // Then re-aim, through the very same limits the pan gestures answer to. The
+    // rig looks at LOOK_Y — a shade ABOVE the ground it is framing — so pointing
+    // it at the board's centroid actually lands the visible patch of ground a
+    // little north of centre, which at the cover zoom is a band of dead space
+    // along the top edge. Nothing else has to know about that parallax:
+    // panLimits measures where the ground really lands, so clamping through it
+    // puts the view exactly where it belongs.
+    const orbit = controls as OrbitLike | null;
+    if (orbit) {
+      const limits = panLimits(cam, orbit.target, bounds);
+      const fix = limits && boardClampOffset(orbit.target, limits, clampFix);
+      if (fix && fix.lengthSq() > 0) {
+        orbit.target.add(fix);
+        cam.position.add(fix);
+        orbit.update();
+      }
+    }
+    onZoom(cam.zoom);
+  }, [camera, controls, bounds, fill, minZoom, onZoom, clampFix]);
+
+  // Right-drag pan and scroll-zoom both run inside OrbitControls, so there's no
+  // step of ours to trim the way the arrow keys are trimmed — the move has
+  // already landed by the time the controls report it. Correcting on every
+  // change is equivalent: the target is hauled back within the same tick, before
+  // the frame is drawn, so a drag simply stops at the edge and resumes on the
+  // way back, and zooming out slides the view inward instead of exposing black.
+  function onControlsChange(e?: { target?: unknown }) {
+    const orbit = e?.target as OrbitLike | undefined;
+    if (!orbit) return;
+    const limits = panLimits(orbit.object, orbit.target, bounds);
+    if (limits) {
+      const fix = boardClampOffset(orbit.target, limits, clampFix);
+      if (fix.lengthSq() > 0) {
+        // Camera moves with the target, so the correction is a pure slide — the
+        // controls' own spherical state (angle, distance) is left untouched, and
+        // nothing here calls update(), so this can't re-enter through its change event.
+        orbit.target.add(fix);
+        orbit.object.position.add(fix);
+      }
+    }
+    onZoom(orbit.object.zoom);
+  }
+
+  return (
+    <OrbitControls
+      makeDefault
+      enablePan
+      // Pan along the BOARD, not the screen. Three's default screen-space
+      // panning slides the target along the camera's up axis, which on a
+      // 35°-tilted rig is mostly world Y — so a vertical right-drag lifted
+      // the look point off the ground entirely and sailed the board out of
+      // frame in a direction no ground-plane bound can catch. False makes
+      // the vertical drag axis `up x right`, the same ground-plane vector
+      // arrowPanStep uses, which keeps the target on the board's plane and
+      // leaves the pan limits the only limit that matters.
+      screenSpacePanning={false}
+      mouseButtons={{
+        LEFT: altHeld ? THREE.MOUSE.ROTATE : undefined,
+        MIDDLE: THREE.MOUSE.ROTATE,
+        RIGHT: THREE.MOUSE.PAN,
+      }}
+      target={[bounds.cx, LOOK_Y, bounds.cz]}
+      minZoom={minZoom}
+      maxZoom={400}
+      onChange={onControlsChange}
+    />
+  );
 }
 
 export default function MapViewport({
@@ -307,33 +415,9 @@ export default function MapViewport({
   onPaintUp,
 }: MapViewportProps) {
   const bounds = useMemo(() => boardBounds(cols, rows), [cols, rows]);
-  const [zoom, setZoom] = useState(() => fitZoom(bounds.width, bounds.depth));
-  // Re-frame (both zoom and look target) whenever the board is resized —
-  // otherwise growing the board would leave the camera zoomed into a corner
-  // of the new, larger field.
-  useEffect(() => {
-    setZoom(fitZoom(bounds.width, bounds.depth));
-  }, [bounds.width, bounds.depth]);
-
-  // Right-drag pan runs inside OrbitControls, so there's no step of ours to trim
-  // the way the arrow keys are trimmed — the move has already landed by the time
-  // the controls report it. Correcting it on every change is equivalent: the
-  // target is hauled back to the board's edge within the same tick, before the
-  // frame is drawn, so a drag simply stops there and resumes on the way back.
-  const clampFix = useRef(new THREE.Vector3()).current;
-  function onControlsChange(e?: { target?: unknown }) {
-    const orbit = e?.target as { target: THREE.Vector3; object: THREE.OrthographicCamera } | undefined;
-    if (!orbit) return;
-    const fix = boardClampOffset(orbit.target, bounds, clampFix);
-    if (fix.lengthSq() > 0) {
-      // Camera moves with the target, so the correction is a pure slide — the
-      // controls' own spherical state (angle, distance) is left untouched, and
-      // nothing here calls update(), so this can't re-enter through its change event.
-      orbit.target.add(fix);
-      orbit.object.position.add(fix);
-    }
-    setZoom(orbit.object.zoom);
-  }
+  // Display only — BoardControls owns the real framing, since it is the one that
+  // can measure the canvas, and reports each change back here for the readout.
+  const [zoom, setZoom] = useState(30);
 
   // Alt(⌥)+left-drag orbits; plain left-drag paints. The left button can't be
   // BOTH paint and orbit, and orbit can't live only on the middle button — a
@@ -394,28 +478,7 @@ export default function MapViewport({
         {/* Drives the same camera/target pair as OrbitControls below, which
             publishes itself to state.controls via makeDefault. */}
         <ArrowKeyPan bounds={bounds} />
-        <OrbitControls
-          makeDefault
-          enablePan
-          // Pan along the BOARD, not the screen. Three's default screen-space
-          // panning slides the target along the camera's up axis, which on a
-          // 35°-tilted rig is mostly world Y — so a vertical right-drag lifted
-          // the look point off the ground entirely and sailed the board out of
-          // frame in a direction no ground-plane bound can catch. False makes
-          // the vertical drag axis `up x right`, the same ground-plane vector
-          // arrowPanStep uses, which keeps the target on the board's plane and
-          // leaves onControlsChange's box the only limit that matters.
-          screenSpacePanning={false}
-          mouseButtons={{
-            LEFT: altHeld ? THREE.MOUSE.ROTATE : undefined,
-            MIDDLE: THREE.MOUSE.ROTATE,
-            RIGHT: THREE.MOUSE.PAN,
-          }}
-          target={[bounds.cx, LOOK_Y, bounds.cz]}
-          minZoom={4}
-          maxZoom={400}
-          onChange={onControlsChange}
-        />
+        <BoardControls bounds={bounds} altHeld={altHeld} onZoom={setZoom} />
       </Canvas>
       <div className="viewport-hint">
         drag = paint/erase · ⌥-drag = orbit · right-drag / arrows = pan · scroll = zoom · {Math.round(zoom)}

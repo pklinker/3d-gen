@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { BoardBounds } from "./hexGrid";
+import type { Rect } from "./viewBounds";
 
 // Arrow-key panning for the map viewport. Kept out of the React component so
 // the direction math is testable on its own (the rest of maps/ follows the same
@@ -8,7 +8,7 @@ import type { BoardBounds } from "./hexGrid";
 export const PAN_KEYS: ReadonlySet<string> = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
 /** Pan speed in SCREEN pixels per second. Dividing by the orthographic zoom
- *  (which is pixels-per-world-unit for this rig — see MapViewport's fitZoom)
+ *  (which is pixels-per-world-unit for this rig — see viewBounds.coverZoom)
  *  turns it into world units, so a keypress moves the board the same visible
  *  distance whether the user is zoomed way in on one hex or fitted to a 96x96
  *  field. */
@@ -59,38 +59,38 @@ export function arrowPanStep(
   return out.normalize().multiplyScalar((PAN_PX_PER_SEC * dt) / zoom);
 }
 
-/** How far of `step` the look target may actually travel — held to the board's
- *  bounding box (margin included), so arrowing never sails off into empty space
- *  with the field nowhere on screen. At the limit the centre of the view sits on
- *  the board's outer edge, which still leaves the board filling half the canvas.
+/** How far of `step` the look target may actually travel — held inside `limits`
+ *  (viewBounds.panLimits: where the target can sit with the board still covering
+ *  the canvas), so arrowing coasts to a stop the moment the board's edge reaches
+ *  the edge of the screen rather than dragging black space into view.
  *
- *  Clamped per axis, so running into the west edge while also holding Up slides
- *  along that edge instead of stopping dead.
+ *  Clamped per axis, so running into the west limit while also holding Up slides
+ *  along it instead of stopping dead.
  *
- *  A target that starts outside the box isn't snapped back (a keypress that
- *  yanked the view somewhere else would be worse than the drift), it just can't
- *  be pushed further out — boardClampOffset is the one that hauls it home. */
-export function clampPanStep(step: THREE.Vector3, targetX: number, targetZ: number, bounds: BoardBounds): THREE.Vector3 {
-  step.x = clampAxis(targetX, step.x, bounds.minX, bounds.maxX);
-  step.z = clampAxis(targetZ, step.z, bounds.minZ, bounds.maxZ);
+ *  A target that starts outside isn't snapped back (a keypress that yanked the
+ *  view somewhere else would be worse than the drift), it just can't be pushed
+ *  further out — boardClampOffset is the one that hauls it home. */
+export function clampPanStep(step: THREE.Vector3, targetX: number, targetZ: number, limits: Rect): THREE.Vector3 {
+  step.x = clampAxis(targetX, step.x, limits.minX, limits.maxX);
+  step.z = clampAxis(targetZ, step.z, limits.minZ, limits.maxZ);
   return step;
 }
 
-/** The offset that hauls a look target back inside the board's box, or (0,0,0)
- *  if it is already there. `target` is left alone — the caller adds the offset
- *  to the target AND the camera, so the correction is a pure slide that leaves
- *  the view angle and distance untouched.
+/** The offset that hauls a look target back inside `limits`, or (0,0,0) if it is
+ *  already there. `target` is left alone — the caller adds the offset to the
+ *  target AND the camera, so the correction is a pure slide that leaves the view
+ *  angle and distance untouched.
  *
- *  This is the hard version of the same limit clampPanStep enforces, for pans
- *  that happen INSIDE OrbitControls (right-drag) where there is no step of ours
- *  to trim — the move has already landed by the time we hear about it, so the
- *  only option is to pull it back. Rotation and zoom keep the target where it
- *  is, so they need no clamping of their own. */
-export function boardClampOffset(target: THREE.Vector3, bounds: BoardBounds, out: THREE.Vector3 = new THREE.Vector3()): THREE.Vector3 {
+ *  This is the hard version of the same limit clampPanStep enforces, for moves
+ *  that happen INSIDE OrbitControls (right-drag pan, and zooming out, which
+ *  widens the view and so tightens the limits under a target already at the
+ *  edge) where there is no step of ours to trim — it has already landed by the
+ *  time we hear about it, so the only option is to pull it back. */
+export function boardClampOffset(target: THREE.Vector3, limits: Rect, out: THREE.Vector3 = new THREE.Vector3()): THREE.Vector3 {
   return out.set(
-    THREE.MathUtils.clamp(target.x, bounds.minX, bounds.maxX) - target.x,
+    THREE.MathUtils.clamp(target.x, limits.minX, limits.maxX) - target.x,
     0,
-    THREE.MathUtils.clamp(target.z, bounds.minZ, bounds.maxZ) - target.z,
+    THREE.MathUtils.clamp(target.z, limits.minZ, limits.maxZ) - target.z,
   );
 }
 

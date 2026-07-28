@@ -7,6 +7,7 @@
   --text: #e8e1d0;
   --muted: #9a9382;
   --accent: #d9a441;
+  --rail: 34px; /* width a collapsed side panel folds down to */
   --ok: #6fcf6f;
   --bad: #e06b5a;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -39,11 +40,26 @@ body { background: var(--bg); color: var(--text); }
 .mode-tabs button.active { background: var(--accent); color: #1a1710; }
 
 .app {
+  --col-left: 300px;
+  --col-right: 320px;
   display: grid;
-  grid-template-columns: 300px 1fr 320px;
+  /* minmax(0, …), not a bare 1fr: the viewport column holds a <canvas>, a
+     replaced element whose intrinsic width becomes the track's automatic
+     minimum. A bare 1fr therefore ratchets — the track can grow with the canvas
+     but never shrink back, so re-opening a collapsed panel (or just narrowing
+     the window) shoved the right panel off-screen instead of giving the space
+     back. Zero minimum lets the track shrink and the canvas follow it. */
+  grid-template-columns: var(--col-left) minmax(0, 1fr) var(--col-right);
   flex: 1 1 auto;
   min-height: 0;
 }
+/* A collapsed side panel has to shrink its GRID TRACK, not just itself, or the
+   viewport never gets the space back. The open/closed state belongs to the panel
+   (that's where the toggle lives), so the parent reads it off the child — which
+   is exactly what :has() is for. Panels with no collapsed state keep the
+   defaults above. */
+.app:has(> .panel.left.collapsed) { --col-left: var(--rail); }
+.app:has(> .panel.right.collapsed) { --col-right: var(--rail); }
 
 .panel {
   background: var(--panel);
@@ -53,6 +69,47 @@ body { background: var(--bg); color: var(--text); }
 }
 .panel.left { display: flex; flex-direction: column; }
 .panel.right { border-right: none; border-left: 1px solid var(--border); }
+
+.panel.collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  overflow: hidden; /* no scrollbar in a rail that narrow */
+}
+
+.panel-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.panel-head > h1, .panel-head > h2 { margin: 0; }
+.panel.collapsed .panel-head { flex-direction: column; margin-bottom: 0; }
+
+.panel-toggle {
+  flex: 0 0 auto;
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  padding: 2px 8px;
+  font-size: 15px;
+  line-height: 1.1;
+}
+.panel-toggle:hover { color: var(--text); border-color: var(--accent); }
+
+.panel-rail-title {
+  writing-mode: vertical-rl;
+  margin-top: 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  white-space: nowrap;
+  user-select: none;
+}
 
 h1 { font-size: 16px; margin: 0 0 16px; color: var(--accent); }
 h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 20px 0 8px; }
